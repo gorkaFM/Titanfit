@@ -215,7 +215,11 @@ export default function ProfileScreen() {
 
     return (
         <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
-            <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
+        <ScrollView
+            className="flex-1 px-6 pt-4"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
+        >
                 {/* Header Profile */}
                 <View className="flex-row items-center justify-between mb-10">
                     <View className="flex-row items-center">
