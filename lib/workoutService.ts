@@ -324,13 +324,14 @@ export const workoutService = {
     },
 
     async updateMeasurements(userId: string, measurements: any) {
+        const today = new Date().toISOString().split('T')[0];
+        // Use upsert: update today's row if it exists, insert if not
         const { error } = await supabase
             .from('user_measurements')
-            .insert({
-                user_id: userId,
-                date: new Date().toISOString().split('T')[0],
-                ...measurements
-            });
+            .upsert(
+                { user_id: userId, date: today, ...measurements },
+                { onConflict: 'user_id,date', ignoreDuplicates: false }
+            );
 
         if (error) throw error;
         return { success: true };

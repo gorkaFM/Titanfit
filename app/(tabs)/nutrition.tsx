@@ -1,66 +1,58 @@
-import DailyTracker from '@/components/nutrition/DailyTracker';
-import NutritionScanner from '@/components/nutrition/NutritionScanner';
-import NutritionOnboarding from '@/components/nutrition/Onboarding';
-import { useAuth } from '@/context/AuthContext';
-import { nutritionService } from '@/lib/nutritionService';
-import { UserNutritionProfile } from '@/types/nutrition';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, View } from 'react-native';
+import { BookOpen, Camera } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
+import FoodDiary from '@/components/nutrition/FoodDiary';
+import MenuPhotoPlanner from '@/components/nutrition/MenuPhotoPlanner';
+
+type ActiveTab = 'diary' | 'planner';
 
 export default function NutritionScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
     const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
-    const [profile, setProfile] = useState<UserNutritionProfile | null>(null);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<ActiveTab>('diary');
 
-    useEffect(() => {
-        if (!user) return;
-        nutritionService.getNutritionProfile(user.id)
-            .then(data => {
-                setProfile(data);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, [user]);
-
-    if (loading) {
+    if (!user) {
         return (
-            <View className={`flex-1 justify-center items-center ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
-                <ActivityIndicator color={isDark ? '#fff' : '#000'} size="large" />
+            <View className={`flex-1 items-center justify-center ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+                <Text className={`font-bold ${isDark ? 'text-zinc-400' : 'text-slate-400'}`}>Inicia sesión para acceder a nutrición</Text>
             </View>
         );
     }
 
-    // Flujo 1: No hay perfil => Onboarding
-    if (!profile && user) {
-        return (
-            <NutritionOnboarding
-                userId={user.id}
-                onComplete={(p) => setProfile(p)}
-            />
-        );
-    }
-
-    // Flujo 2: Hay perfil => Tracker Diario (con modal de escáner)
     return (
-        <View className="flex-1">
-            <DailyTracker
-                userId={user!.id}
-                profile={profile!}
-                openScanner={() => setIsScannerOpen(true)}
-                onResetProfile={() => setProfile(null)}
-            />
+        <View className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+            {/* Tab selector */}
+            <SafeAreaView>
+                <View className={`flex-row mx-6 mt-2 p-1.5 rounded-3xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+                    {([
+                        { id: 'diary', label: 'Diario', Icon: BookOpen },
+                        { id: 'planner', label: 'Planificador', Icon: Camera },
+                    ] as const).map(({ id, label, Icon }) => (
+                        <TouchableOpacity
+                            key={id}
+                            onPress={() => setActiveTab(id)}
+                            className={`flex-1 flex-row items-center justify-center gap-x-2 py-3 rounded-2xl ${activeTab === id ? 'bg-blue-600 shadow-lg' : ''}`}
+                        >
+                            <Icon size={15} color={activeTab === id ? '#ffffff' : (isDark ? '#52525b' : '#94a3b8')} />
+                            <Text className={`font-black text-[11px] uppercase tracking-widest ${activeTab === id ? 'text-white' : (isDark ? 'text-zinc-500' : 'text-slate-400')}`}>
+                                {label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </SafeAreaView>
 
-            <Modal
-                visible={isScannerOpen}
-                animationType="slide"
-                presentationStyle="pageSheet"
-            >
-                <NutritionScanner onClose={() => setIsScannerOpen(false)} />
-            </Modal>
+            {/* Contenido */}
+            <View className="flex-1">
+                {activeTab === 'diary' ? (
+                    <FoodDiary userId={user.id} />
+                ) : (
+                    <MenuPhotoPlanner />
+                )}
+            </View>
         </View>
     );
 }
