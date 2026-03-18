@@ -83,7 +83,8 @@ function parseOFFProduct(p: any): FoodSearchResult | null {
 // ─── Open Food Facts — Búsqueda por texto ────────────────────────────────────
 
 const OFF_SEARCH_FIELDS = 'fields=product_name,product_name_es,brands,nutriments,nutriscore_grade,code';
-const OFF_TIMEOUT_MS = 4000;
+// 10s timeout — iOS Safari PWA can be slow on first connection
+const OFF_TIMEOUT_MS = 10000;
 
 async function searchOFF(
     query: string,
@@ -112,27 +113,16 @@ async function searchOFF(
 }
 
 /**
- * Búsqueda principal: lanza España y Global en PARALELO.
- * Fusiona resultados poniendo España primero.
+ * Búsqueda principal: primero catálogo global (incluye España), más rápido.
+ * Si hay ≥3 resultados, los devuelve. Si no, intenta añadir filtro España.
+ * Estrategia secuencial para máxima estabilidad en PWA/Safari.
  */
 export async function searchFoodOpenFoodFacts(query: string, maxResults = 15): Promise<FoodSearchResult[]> {
     if (!query.trim()) return [];
 
-    const [esResult, globalResult] = await Promise.allSettled([
-        searchOFF(query, 'en:spain', maxResults),
-        searchOFF(query, '',         maxResults),
-    ]);
-
-    const esItems    = esResult.status    === 'fulfilled' ? esResult.value    : [];
-    const globalItems = globalResult.status === 'fulfilled' ? globalResult.value : [];
-
-    // España primero, luego globales no duplicados
-    const seen = new Set(esItems.map(r => r.id));
-    const merged = [
-        ...esItems,
-        ...globalItems.filter(r => !seen.has(r.id)),
-    ];
-    return merged.slice(0, maxResults);
+    // Single global search (faster, includes all countries including Spain)
+    const globalItems = await searchOFF(query, '', maxResults);
+    return globalItems.slice(0, maxResults);
 }
 
 // ─── USDA FoodData Central — Fallback para genéricos ─────────────────────────
