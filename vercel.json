@@ -1,7 +1,6 @@
 {
-  "buildCommand": "npx expo export --platform web",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "installCommand": "echo 'no install needed'",
   "framework": null,
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
