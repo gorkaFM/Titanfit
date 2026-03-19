@@ -17,6 +17,12 @@ export interface ShoppingItem {
   items: string[];
 }
 
+export interface MealRecipe {
+  title: string;
+  ingredients: string[];
+  steps: string[];
+}
+
 interface MealLogRecord {
   id: string;
   user_id: string;
@@ -37,6 +43,7 @@ interface ImportPlanRpcResult {
 export const ACTIVE_GEMINI_MODELS = GEMINI_MODELS;
 const MIN_PLAN_DAYS = 7;
 const MIN_MEALS_PER_DAY = 3;
+const CATEGORY_ORDER = ['Proteinas', 'Carbohidratos', 'Frutas y Verduras', 'Grasas y Lacteos', 'Condimentos y Aceites', 'Otros'];
 
 const MENU_PLAN_PROMPT = `Eres un nutricionista experto. Analiza el menu, receta o lista de alimentos proporcionada y genera un plan alimentario semanal de 7 dias siguiendo el mismo estilo de cocina y alimentos visibles.
 
@@ -193,6 +200,26 @@ function normalizeWeeklyPlan(rawPlan: unknown): DayPlan[] {
   });
 
   return normalizedPlan.slice(0, MIN_PLAN_DAYS);
+}
+
+function normalizeMealRecipe(rawRecipe: any, fallbackTitle: string): MealRecipe {
+  const title = typeof rawRecipe?.title === 'string' && rawRecipe.title.trim()
+    ? rawRecipe.title.trim()
+    : fallbackTitle;
+
+  const ingredients = Array.isArray(rawRecipe?.ingredients)
+    ? rawRecipe.ingredients.map((ingredient: any) => String(ingredient || '').trim()).filter(Boolean)
+    : [];
+
+  const steps = Array.isArray(rawRecipe?.steps)
+    ? rawRecipe.steps.map((step: any) => String(step || '').trim()).filter(Boolean)
+    : [];
+
+  if (ingredients.length === 0 || steps.length === 0) {
+    throw new Error('La receta generada esta incompleta.');
+  }
+
+  return { title, ingredients, steps };
 }
 
 async function callGemini(
@@ -364,61 +391,213 @@ export async function analyzeMenuAsset(base64: string, mimeType: string): Promis
 }
 
 export async function generateShoppingListFromPlan(plan: DayPlan[]): Promise<ShoppingItem[]> {
-  const planText = plan
-    .map((dayPlan) => `${dayPlan.day}:\n${dayPlan.meals.map((meal) => `  ${meal.meal}: ${meal.foods}`).join('\n')}`)
-    .join('\n\n');
-
-  const prompt = `Dado este plan semanal, genera una lista de la compra organizada por categorias.
-Responde SOLO JSON puro sin markdown:
-{"categories":[{"category":"Carnes y Pescados","items":["item1"]},{"category":"Frutas y Verduras","items":["item1"]}]}
-
-Plan:
-${planText}`;
-
-  try {
-    const parsed = await callGemini([{ text: prompt }], 1500);
-    const categories = parsed?.categories ?? [];
-    if (categories.length > 0) {
-      return categories;
-    }
-  } catch {}
-
   return deriveShoppingListFromPlan(plan);
 }
 
+interface ParsedIngredient {
+  name: string;
+  quantity: number | null;
+  unit: 'g' | 'ml' | 'ud' | null;
+}
+
+function normalizeIngredientName(rawName: string) {
+  return rawName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(de|del|la|el|los|las)\b/g, ' ')
+    .replace(/\b(a la plancha|al vapor|a vapor|a la parrilla|saltead[oa]s?|hervid[oa]s?|cocid[oa]s?|asad[oa]s?|al horno|hornead[oa]s?|trocead[oa]s?|picad[oa]s?)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanupIngredientLabel(rawName: string) {
+  const cleaned = rawName
+    .replace(/\b(a la plancha|al vapor|a vapor|a la parrilla|saltead[oa]s?|hervid[oa]s?|cocid[oa]s?|asad[oa]s?|al horno|hornead[oa]s?|trocead[oa]s?|picad[oa]s?)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^de\s+/i, '');
+
+  if (!cleaned) return rawName.trim();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function normalizeUnit(quantity: number, rawUnit: string | null): ParsedIngredient['unit'] {
+  if (!rawUnit) return null;
+  const unit = rawUnit.toLowerCase();
+  if (['g', 'gr', 'gramo', 'gramos', 'kg', 'kilo', 'kilos'].includes(unit)) return 'g';
+  if (['ml', 'l', 'litro', 'litros'].includes(unit)) return 'ml';
+  if (['ud', 'uds', 'unidad', 'unidades', 'lata', 'latas', 'huevo', 'huevos', 'clara', 'claras'].includes(unit)) return 'ud';
+  return quantity > 0 ? 'ud' : null;
+}
+
+function normalizeQuantity(quantity: number, rawUnit: string | null) {
+  const unit = rawUnit?.toLowerCase() ?? '';
+  if (['kg', 'kilo', 'kilos'].includes(unit)) return quantity * 1000;
+  if (['l', 'litro', 'litros'].includes(unit)) return quantity * 1000;
+  return quantity;
+}
+
+function parseIngredientSegment(segment: string): ParsedIngredient | null {
+  const cleaned = segment
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[.]/g, '')
+    .trim();
+
+  if (!cleaned) return null;
+
+  const ingredientMatch = cleaned.match(/^(\d+(?:[.,]\d+)?)\s*(kg|kilo|kilos|g|gr|gramo|gramos|ml|l|litro|litros|ud|uds|unidad|unidades|lata|latas|huevo|huevos|clara|claras)\s+(.*)$/i);
+  if (ingredientMatch) {
+    const quantity = Number(ingredientMatch[1].replace(',', '.'));
+    const rawUnit = ingredientMatch[2];
+    const tail = ingredientMatch[3].trim();
+    const unit = normalizeUnit(quantity, rawUnit);
+    const normalizedQuantity = normalizeQuantity(quantity, rawUnit);
+    const name = ['huevo', 'huevos', 'clara', 'claras'].includes(rawUnit.toLowerCase())
+      ? `${rawUnit} ${tail}`.trim()
+      : tail;
+
+    return {
+      name: cleanupIngredientLabel(name),
+      quantity: normalizedQuantity,
+      unit,
+    };
+  }
+
+  const looseCleaned = cleaned.replace(/^chorrito de\s+/i, '').replace(/^un poco de\s+/i, '').trim();
+  if (!looseCleaned) return null;
+
+  return {
+    name: cleanupIngredientLabel(looseCleaned),
+    quantity: null,
+    unit: null,
+  };
+}
+
+function formatAggregatedQuantity(quantity: number, unit: ParsedIngredient['unit']) {
+  if (unit === 'g') {
+    if (quantity >= 1000) {
+      const kilos = quantity / 1000;
+      return `${Number.isInteger(kilos) ? kilos : kilos.toFixed(1)} kg`;
+    }
+    return `${Math.round(quantity)} g`;
+  }
+
+  if (unit === 'ml') {
+    if (quantity >= 1000) {
+      const liters = quantity / 1000;
+      return `${Number.isInteger(liters) ? liters : liters.toFixed(1)} l`;
+    }
+    return `${Math.round(quantity)} ml`;
+  }
+
+  if (unit === 'ud') {
+    return `${Math.round(quantity)} uds`;
+  }
+
+  return '';
+}
+
 function deriveShoppingListFromPlan(plan: DayPlan[]): ShoppingItem[] {
-  const categoryMap = new Map<string, Set<string>>();
+  const categoryMap = new Map<string, Map<string, ParsedIngredient>>();
 
   const pickCategory = (item: string) => {
     const normalized = item.toLowerCase();
-    if (/(pollo|pavo|ternera|atun|atún|salmon|salmón|huevo|jamon|jamón|merluza)/.test(normalized)) return 'Proteinas';
+    if (/(pollo|pavo|ternera|atun|atún|salmon|salmón|huevo|claras|jamon|jamón|merluza)/.test(normalized)) return 'Proteinas';
     if (/(arroz|avena|pan|pasta|patata|boniato|tortilla|cereal)/.test(normalized)) return 'Carbohidratos';
     if (/(manzana|platano|plátano|naranja|fresa|pera|kiwi|verdura|ensalada|brocoli|brócoli|tomate|pepino|zanahoria)/.test(normalized)) return 'Frutas y Verduras';
-    if (/(aceite|aguacate|frutos secos|nueces|almendras|queso|yogur|leche)/.test(normalized)) return 'Grasas y Lacteos';
+    if (/(aceite|vinagre|especias|condimento)/.test(normalized)) return 'Condimentos y Aceites';
+    if (/(aguacate|frutos secos|nueces|almendras|queso|yogur|leche)/.test(normalized)) return 'Grasas y Lacteos';
     return 'Otros';
   };
 
   for (const dayPlan of plan) {
     for (const meal of dayPlan.meals) {
       const rawItems = meal.foods
-        .split(/,| y | con /gi)
+        .split(/,|;|\n/gi)
         .map((item) => item.trim())
         .filter(Boolean);
 
       for (const item of rawItems) {
-        const category = pickCategory(item);
+        const parsedIngredient = parseIngredientSegment(item);
+        if (!parsedIngredient) continue;
+
+        const category = pickCategory(parsedIngredient.name);
         if (!categoryMap.has(category)) {
-          categoryMap.set(category, new Set());
+          categoryMap.set(category, new Map());
         }
-        categoryMap.get(category)?.add(item);
+
+        const ingredientKey = `${normalizeIngredientName(parsedIngredient.name)}|${parsedIngredient.unit ?? 'none'}`;
+        const categoryItems = categoryMap.get(category)!;
+        const current = categoryItems.get(ingredientKey);
+
+        if (!current) {
+          categoryItems.set(ingredientKey, parsedIngredient);
+          continue;
+        }
+
+        if (current.quantity !== null && parsedIngredient.quantity !== null && current.unit === parsedIngredient.unit) {
+          current.quantity += parsedIngredient.quantity;
+        }
       }
     }
   }
 
-  return Array.from(categoryMap.entries()).map(([category, items]) => ({
-    category,
-    items: Array.from(items),
-  }));
+  return CATEGORY_ORDER
+    .filter((category) => categoryMap.has(category))
+    .map((category) => {
+      const items = Array.from(categoryMap.get(category)!.values())
+        .map((ingredient) => {
+          const formattedQuantity = ingredient.quantity !== null
+            ? formatAggregatedQuantity(ingredient.quantity, ingredient.unit)
+            : '';
+          return formattedQuantity ? `${ingredient.name} · ${formattedQuantity}` : ingredient.name;
+        })
+        .sort((a, b) => a.localeCompare(b, 'es'));
+
+      return { category, items };
+    })
+    .filter((category) => category.items.length > 0);
+}
+
+function inferRecipeFallback(meal: DayPlan['meals'][number]): MealRecipe {
+  const ingredients = meal.foods
+    .split(/,| y /gi)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return {
+    title: meal.meal,
+    ingredients,
+    steps: [
+      `Prepara y mide los ingredientes: ${ingredients.join(', ')}.`,
+      'Cocina cada ingrediente con la tecnica indicada por el plato hasta que quede en su punto.',
+      'Emplata, ajusta condimentos al gusto y sirve la racion completa.',
+    ],
+  };
+}
+
+export async function generateRecipeForMeal(day: string, meal: DayPlan['meals'][number]): Promise<MealRecipe> {
+  const prompt = [
+    'Eres un chef y nutricionista.',
+    `Genera una receta breve, practica y fiel a esta comida del ${day}.`,
+    `Tipo de comida: ${meal.meal}`,
+    `Ingredientes/base del plato: ${meal.foods}`,
+    `Kcal aproximadas: ${meal.kcal_approx}`,
+    '',
+    'REGLAS:',
+    '1. No cambies los ingredientes principales ni las cantidades dadas.',
+    '2. Puedes anadir solo condimentos o tecnicas de coccion coherentes.',
+    '3. Devuelve SOLO JSON puro sin markdown.',
+    '4. Formato exacto:',
+    '{"title":"Nombre de la receta","ingredients":["ingrediente 1"],"steps":["paso 1","paso 2","paso 3"]}',
+  ].join('\n');
+
+  try {
+    return await callGemini([{ text: prompt }], 2000, (parsed) => normalizeMealRecipe(parsed, meal.meal));
+  } catch {
+    return inferRecipeFallback(meal);
+  }
 }
 
 function normalizeMealType(mealLabel: string) {

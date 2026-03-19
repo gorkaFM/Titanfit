@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    View, Text, TouchableOpacity, SafeAreaView, ScrollView,
+    View, Text, TouchableOpacity, SafeAreaView, ScrollView, Modal,
     ActivityIndicator, Platform, Alert
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { Camera, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CheckSquare, Square, ClipboardList } from 'lucide-react-native';
-import { ACTIVE_GEMINI_MODELS, analyzeMenuAsset, DayPlan, generateShoppingListFromPlan, importPlanToDiary, ShoppingItem } from '@/lib/menuPlannerService';
+import { Camera, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, ChevronRight, Image as ImageIcon, FileText, CheckSquare, Square, ClipboardList, Utensils } from 'lucide-react-native';
+import { ACTIVE_GEMINI_MODELS, analyzeMenuAsset, DayPlan, generateRecipeForMeal, generateShoppingListFromPlan, importPlanToDiary, MealRecipe, ShoppingItem } from '@/lib/menuPlannerService';
 import { clearPlannerState, loadPlannerState, PersistedShoppingCategory, savePlannerState } from '@/lib/nutritionPlannerStorage';
 
 // ─── Helpers de selección de imagen / PDF ─────────────────────────────────────
@@ -95,6 +95,10 @@ function toPersistedShopping(shoppingList: ShoppingItem[]): PersistedShoppingCat
     }));
 }
 
+function getMealRecipeKey(day: string, meal: DayPlan['meals'][number]) {
+    return `${day}::${meal.meal}::${meal.foods}`;
+}
+
 export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTransferToDiary, onDraftStateChange }: MenuPhotoPlannerProps) {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
@@ -102,9 +106,12 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
     const [phase, setPhase] = useState<'idle' | 'analyzing' | 'plan' | 'shopping'>('idle');
     const [plan, setPlan] = useState<DayPlan[]>([]);
     const [shopping, setShopping] = useState<PersistedShoppingCategory[]>([]);
+    const [recipes, setRecipes] = useState<Record<string, MealRecipe>>({});
     const [error, setError] = useState('');
     const [expandedDay, setExpandedDay] = useState<string | null>(null);
     const [importing, setImporting] = useState(false);
+    const [recipeLoading, setRecipeLoading] = useState(false);
+    const [recipeTarget, setRecipeTarget] = useState<{ day: string; meal: DayPlan['meals'][number] } | null>(null);
     const [importedToDiary, setImportedToDiary] = useState(false);
     const [importedDiaryStartDate, setImportedDiaryStartDate] = useState<string | null>(null);
     const [hydrated, setHydrated] = useState(false);
@@ -116,6 +123,7 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
 
             setPlan(storedState.plan);
             setShopping(storedState.shopping);
+            setRecipes(storedState.recipes ?? {});
             setExpandedDay(storedState.expandedDay);
             setImportedToDiary(storedState.importedToDiary);
             setImportedDiaryStartDate(storedState.importedDiaryStartDate ?? null);
@@ -148,12 +156,13 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
         savePlannerState(userId, {
             plan,
             shopping,
+            recipes,
             expandedDay,
             importedToDiary,
             importedDiaryStartDate,
             updatedAt: new Date().toISOString(),
         });
-    }, [expandedDay, hydrated, importedDiaryStartDate, importedToDiary, onDraftStateChange, plan, shopping, userId]);
+    }, [expandedDay, hydrated, importedDiaryStartDate, importedToDiary, onDraftStateChange, plan, recipes, shopping, userId]);
 
     const handlePick = async (mode: 'camera' | 'gallery' | 'pdf') => {
         setError('');
@@ -166,6 +175,8 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
             if (!result.length) throw new Error('No se pudo generar el plan');
             setPlan(result);
             setShopping([]);
+            setRecipes({});
+            setRecipeTarget(null);
             setImportedToDiary(false);
             setImportedDiaryStartDate(null);
             setPhase('plan');
@@ -191,6 +202,8 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
     const handleReset = useCallback(({ clearShopping = false }: { clearShopping?: boolean } = {}) => {
         setPlan([]);
         setError('');
+        setRecipes({});
+        setRecipeTarget(null);
         setExpandedDay(null);
         setImportedToDiary(false);
         setImportedDiaryStartDate(null);
@@ -246,6 +259,28 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
         );
     };
 
+    const handleOpenRecipe = async (day: string, meal: DayPlan['meals'][number]) => {
+        const recipeKey = getMealRecipeKey(day, meal);
+        setRecipeTarget({ day, meal });
+
+        if (recipes[recipeKey]) {
+            return;
+        }
+
+        setRecipeLoading(true);
+        try {
+            const recipe = await generateRecipeForMeal(day, meal);
+            setRecipes((current) => ({
+                ...current,
+                [recipeKey]: recipe,
+            }));
+        } catch (e: any) {
+            setError(e.message ?? 'No se pudo generar la receta');
+        } finally {
+            setRecipeLoading(false);
+        }
+    };
+
     const completedShoppingItems = useMemo(
         () => shopping.reduce((total, category) => total + category.items.filter((item) => item.checked).length, 0),
         [shopping]
@@ -254,6 +289,7 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
         () => shopping.reduce((total, category) => total + category.items.length, 0),
         [shopping]
     );
+    const activeRecipe = recipeTarget ? recipes[getMealRecipeKey(recipeTarget.day, recipeTarget.meal)] : null;
 
     // ─── Render idle ──────────────────────────────────────────────────────────
     const renderIdle = () => (
@@ -366,11 +402,21 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
                             {expanded ? <ChevronUp size={18} color={isDark ? '#52525b' : '#94a3b8'} /> : <ChevronDown size={18} color={isDark ? '#52525b' : '#94a3b8'} />}
                         </TouchableOpacity>
                         {expanded && dayPlan.meals.map((m, i) => (
-                            <View key={i} className={`px-5 py-3 border-t ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                                <Text className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-1">{m.meal}</Text>
-                                <Text className={`font-medium text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{m.foods}</Text>
-                                <Text className={`font-bold text-[10px] mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>~{m.kcal_approx} kcal</Text>
-                            </View>
+                            <TouchableOpacity
+                                key={i}
+                                onPress={() => handleOpenRecipe(dayPlan.day, m)}
+                                activeOpacity={0.85}
+                                className={`px-5 py-3 border-t ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}
+                            >
+                                <View className="flex-row items-start justify-between gap-x-3">
+                                    <View className="flex-1">
+                                        <Text className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-1">{m.meal}</Text>
+                                        <Text className={`font-medium text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{m.foods}</Text>
+                                        <Text className={`font-bold text-[10px] mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>~{m.kcal_approx} kcal · Toca para ver receta</Text>
+                                    </View>
+                                    <ChevronRight size={16} color={isDark ? '#52525b' : '#94a3b8'} />
+                                </View>
+                            </TouchableOpacity>
                         ))}
                     </View>
                 );
@@ -465,6 +511,69 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
             {phase === 'analyzing' && renderAnalyzing()}
             {phase === 'plan' && renderPlan()}
             {phase === 'shopping' && renderShopping()}
+            <Modal visible={!!recipeTarget} animationType="slide" transparent onRequestClose={() => setRecipeTarget(null)}>
+                <View className="flex-1 bg-black/70 justify-end">
+                    <View className={`rounded-t-[32px] px-6 pt-6 pb-10 max-h-[85%] ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+                        <View className="flex-row items-start justify-between mb-5 gap-x-4">
+                            <View className="flex-1">
+                                <Text className={`font-bold text-[10px] uppercase tracking-[3px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                                    {recipeTarget?.day} · {recipeTarget?.meal.meal}
+                                </Text>
+                                <Text className={`font-black text-2xl mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    {activeRecipe?.title ?? recipeTarget?.meal.meal}
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setRecipeTarget(null)}
+                                className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-zinc-900' : 'bg-white border border-slate-200'}`}
+                            >
+                                <X size={16} color={isDark ? '#e4e4e7' : '#475569'} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {recipeLoading && !activeRecipe ? (
+                            <View className="py-16 items-center justify-center">
+                                <ActivityIndicator color="#3b82f6" />
+                                <Text className={`mt-4 font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                                    Generando receta paso a paso...
+                                </Text>
+                            </View>
+                        ) : activeRecipe ? (
+                            <ScrollView showsVerticalScrollIndicator={false}>
+                                <View className={`rounded-[28px] border p-5 mb-4 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                    <View className="flex-row items-center mb-4">
+                                        <Utensils size={16} color="#3b82f6" />
+                                        <Text className={`font-black text-sm uppercase tracking-widest ml-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                            Ingredientes
+                                        </Text>
+                                    </View>
+                                    {activeRecipe.ingredients.map((ingredient, index) => (
+                                        <Text key={`${ingredient}-${index}`} className={`font-medium text-sm mb-2 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                                            • {ingredient}
+                                        </Text>
+                                    ))}
+                                </View>
+
+                                <View className={`rounded-[28px] border p-5 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                    <Text className={`font-black text-sm uppercase tracking-widest mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                        Preparación
+                                    </Text>
+                                    {activeRecipe.steps.map((step, index) => (
+                                        <View key={`${step}-${index}`} className="flex-row items-start mb-4">
+                                            <View className="w-7 h-7 rounded-full bg-blue-600 items-center justify-center mt-0.5">
+                                                <Text className="text-white font-black text-[11px]">{index + 1}</Text>
+                                            </View>
+                                            <Text className={`flex-1 ml-3 font-medium text-sm leading-6 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                                                {step}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </ScrollView>
+                        ) : null}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }

@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { DayPlan } from '@/lib/menuPlannerService';
+import { DayPlan, MealRecipe } from '@/lib/menuPlannerService';
 
 export interface PersistedShoppingListItem {
   id: string;
@@ -16,6 +16,7 @@ export interface PersistedShoppingCategory {
 export interface PersistedPlannerState {
   plan: DayPlan[];
   shopping: PersistedShoppingCategory[];
+  recipes: Record<string, MealRecipe>;
   expandedDay: string | null;
   importedToDiary: boolean;
   importedDiaryStartDate?: string | null;
@@ -62,6 +63,7 @@ export async function loadPlannerState(userId: string): Promise<PersistedPlanner
     return {
       plan: parsed.plan ?? [],
       shopping: parsed.shopping ?? [],
+      recipes: parsed.recipes ?? {},
       expandedDay: parsed.expandedDay ?? null,
       importedToDiary: parsed.importedToDiary ?? false,
       importedDiaryStartDate: parsed.importedDiaryStartDate ?? null,
