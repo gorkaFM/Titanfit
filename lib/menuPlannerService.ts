@@ -57,21 +57,96 @@ function stripDataUrlPrefix(base64: string) {
   return base64.includes(',') ? base64.split(',')[1] : base64;
 }
 
+function stripMarkdownFences(raw: string) {
+  return raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+}
+
+function extractJsonCandidate(raw: string) {
+  const clean = stripMarkdownFences(raw);
+  const objectStart = clean.indexOf('{');
+  const arrayStart = clean.indexOf('[');
+  let start = -1;
+
+  if (objectStart >= 0 && arrayStart >= 0) {
+    start = Math.min(objectStart, arrayStart);
+  } else {
+    start = Math.max(objectStart, arrayStart);
+  }
+
+  if (start < 0) {
+    throw new Error('No se pudo extraer JSON valido de la respuesta.');
+  }
+
+  return clean.slice(start).trim();
+}
+
+function removeTrailingCommas(raw: string) {
+  return raw.replace(/,\s*([}\]])/g, '$1');
+}
+
+function closeJsonDelimiters(raw: string) {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (const char of raw) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{') stack.push('}');
+    if (char === '[') stack.push(']');
+    if ((char === '}' || char === ']') && stack[stack.length - 1] === char) {
+      stack.pop();
+    }
+  }
+
+  return `${removeTrailingCommas(raw)}${stack.reverse().join('')}`;
+}
+
 function parseJsonResponse(raw: string) {
   if (!raw.trim()) {
     throw new Error('La IA no devolvio contenido.');
   }
 
+  const attempts = [raw];
+
   try {
     return JSON.parse(raw);
-  } catch {
-    const clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    const match = clean.match(/\{[\s\S]*\}/);
-    if (!match) {
-      throw new Error('No se pudo extraer JSON valido de la respuesta.');
-    }
-    return JSON.parse(match[0]);
+  } catch {}
+
+  const candidate = extractJsonCandidate(raw);
+  if (candidate !== raw) {
+    attempts.push(candidate);
   }
+
+  attempts.push(removeTrailingCommas(candidate));
+  attempts.push(closeJsonDelimiters(candidate));
+  attempts.push(closeJsonDelimiters(removeTrailingCommas(candidate)));
+
+  let lastError: Error | null = null;
+  for (const attempt of attempts) {
+    try {
+      return JSON.parse(attempt);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('No se pudo parsear el JSON.');
+    }
+  }
+
+  throw lastError ?? new Error('No se pudo extraer JSON valido de la respuesta.');
 }
 
 async function callGemini(parts: { text?: string; inline_data?: { mime_type: string; data: string } }[], maxOutputTokens: number) {
@@ -97,7 +172,13 @@ async function callGemini(parts: { text?: string; inline_data?: { mime_type: str
     if (response.ok) {
       const data = await response.json();
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      return parseJsonResponse(raw);
+
+      try {
+        return parseJsonResponse(raw);
+      } catch (error) {
+        lastError = `${model} -> ${(error as Error).message}`;
+        continue;
+      }
     }
 
     const errText = await response.text();
