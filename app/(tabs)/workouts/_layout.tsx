@@ -4,6 +4,9 @@ export default function WorkoutsLayout() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
+            <Stack.Screen name="active" />
+            <Stack.Screen name="history" />
+            <Stack.Screen name="summary" />
         </Stack>
     );
 }

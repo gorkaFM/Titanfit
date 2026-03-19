@@ -5,9 +5,11 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { WorkoutProvider } from '@/context/WorkoutContext';
 import { useColorScheme } from 'nativewind';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 
 
 export const unstable_settings = {
@@ -56,9 +58,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <WorkoutProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+        </AuthProvider>
+      </WorkoutProvider>
     </SafeAreaProvider>
   );
 }

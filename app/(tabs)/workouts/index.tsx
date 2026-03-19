@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { useWorkout } from '@/context/WorkoutContext';
 import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -8,11 +9,13 @@ import React, { useEffect, useState } from 'react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ActivityIndicator, Platform, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
+
 export default function WorkoutsScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
     const { user } = useAuth();
     const router = useRouter();
+    const { isActive } = useWorkout();
     const [loading, setLoading] = useState(true);
 
     const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
@@ -95,6 +98,29 @@ export default function WorkoutsScreen() {
                 contentContainerStyle={{ paddingTop: Platform.OS === 'android' ? 40 : 20, paddingBottom: 120 }}
                 showsVerticalScrollIndicator={false}
             >
+
+                {/* 🔴 Active Workout Banner — shown when a session is in progress */}
+                {isActive && (
+                    <TouchableOpacity
+                        onPress={() => router.push('/workouts/active')}
+                        activeOpacity={0.85}
+                        className="mb-6 overflow-hidden rounded-[28px]"
+                        style={{ backgroundColor: '#1d4ed8' }}
+                    >
+                        <View className="px-6 py-4 flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                                <View className="w-3 h-3 rounded-full bg-emerald-400 mr-3" style={{ shadowColor: '#34d399', shadowOpacity: 1, shadowRadius: 6 }} />
+                                <View>
+                                    <Text className="text-white font-black text-sm uppercase tracking-widest">Entrenamiento en curso</Text>
+                                    <Text className="text-blue-200 font-bold text-[10px] uppercase tracking-widest mt-0.5">Toca para continuar →</Text>
+                                </View>
+                            </View>
+                            <View className="w-10 h-10 rounded-full bg-white/20 items-center justify-center">
+                                <Zap size={20} color="#ffffff" fill="#ffffff" />
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                )}
 
                 {/* Header */}
                 <View className="flex-row justify-between items-center mb-8">

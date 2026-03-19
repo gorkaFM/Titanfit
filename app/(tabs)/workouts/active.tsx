@@ -1,15 +1,17 @@
 import { useAuth } from '@/context/AuthContext';
+import { useWorkout } from '@/context/WorkoutContext';
 import { useColorScheme } from 'nativewind';
 import { workoutService } from '@/lib/workoutService';
 import { Exercise, Workout, WorkoutExercise, WorkoutSet } from '@/types/workout';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarClock, ChevronLeft, Copy, Dumbbell, History, Layers, Link, Play, Plus, Search, Square, Timer, Trash2, Trophy, X, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LineChart } from 'react-native-chart-kit';
 import { RUTINA_A_EMPUJE, RUTINA_B_TIRON, RUTINA_C_UNILATERAL, HOME_WORKOUTS, HomeWorkoutTemplate } from '@/data/homeWorkoutsTemplates';
 import { Audio } from 'expo-av';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -494,31 +496,32 @@ export default function ActiveWorkoutScreen() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Temporizadores
-    const [workoutStarted, setWorkoutStarted] = useState(false);
-    const [elapsedWorkoutSeconds, setElapsedWorkoutSeconds] = useState(0);
+    // ── Workout state from context (persists across tab switches) ──────────────
+    const {
+        workoutExercises, setWorkoutExercises,
+        workoutStarted, setWorkoutStarted,
+        elapsedSeconds: elapsedWorkoutSeconds, setElapsedSeconds: setElapsedWorkoutSeconds,
+        availableExtraBlocks, setAvailableExtraBlocks,
+        isHomeWorkoutPlan, setIsHomeWorkoutPlan,
+        clearSession,
+    } = useWorkout();
 
+    const [showFinisherModal, setShowFinisherModal] = useState(false);
+
+    // Local UI state — transient, fine to reset on tab switch
     const [restTimerActive, setRestTimerActive] = useState(false);
     const [restRemainingSeconds, setRestRemainingSeconds] = useState(0);
     const [activeRestExerciseId, setActiveRestExerciseId] = useState<string | null>(null);
 
-    // Estado del Modal de Configuración de Bloque
     const [showBlockModal, setShowBlockModal] = useState(false);
     const [blockType, setBlockType] = useState<'normal' | 'superset'>('normal');
     const [supersetCount, setSupersetCount] = useState(2);
 
-    // Estado del Modal de Catálogo
     const [showCatalogModal, setShowCatalogModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingExercisesCount, setPendingExercisesCount] = useState(0);
     const [tempSelectedExercises, setTempSelectedExercises] = useState<Exercise[]>([]);
 
-    const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
-    
-    // Estados para Home Workouts
-    const [isHomeWorkoutPlan, setIsHomeWorkoutPlan] = useState(false);
-    const [availableExtraBlocks, setAvailableExtraBlocks] = useState<WorkoutExercise[]>([]);
-    const [showFinisherModal, setShowFinisherModal] = useState(false);
 
     // Cálculo de Volumen Total en vivo
     const totalVolume = workoutExercises.reduce((acc, we) => {
@@ -562,6 +565,7 @@ export default function ActiveWorkoutScreen() {
         }
         return () => clearInterval(timer);
     }, [workoutStarted]);
+
 
     // Effect Temporizador de Descanso
     useEffect(() => {
@@ -843,7 +847,8 @@ export default function ActiveWorkoutScreen() {
             };
 
             await workoutService.saveWorkout(workoutData).then(result => {
-                // Navegar al resumen épico pasando los datos clave
+                // Limpiar contexto global antes de navegar
+                clearSession();
                 router.push({
                     pathname: '/workouts/summary',
                     params: {
@@ -857,6 +862,7 @@ export default function ActiveWorkoutScreen() {
             });
         } catch (e: any) {
             alert("Error al guardar: " + e.message);
+            setWorkoutStarted(true); // Restore if save failed
         } finally {
             setSaving(false);
         }
