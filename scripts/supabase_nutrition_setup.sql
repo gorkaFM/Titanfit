@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS meal_log_items (
 -- ────────────────────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS meal_logs_user_date   ON meal_logs(user_id, date);
+CREATE UNIQUE INDEX IF NOT EXISTS meal_logs_user_date_type_unique ON meal_logs(user_id, date, meal_type);
 CREATE INDEX IF NOT EXISTS meal_log_items_log_id ON meal_log_items(meal_log_id);
 CREATE INDEX IF NOT EXISTS meal_log_items_user   ON meal_log_items(user_id);
 

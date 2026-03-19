@@ -81,3 +81,11 @@
 **[2026-03-14] - Jerarquía Visual en Pantalla de Entrenamiento (Motivación)**
 - **Problema**: Al restaurar la frase motivadora, se perdía el impacto visual si no se acompañaba de un elemento gráfico potente.
 - **Solución**: Se implementó un componente de "Motivación Central" con un icono `Zap` (rayo) con efecto *glow* azul y tipografía *black uppercase* para crear un punto focal "wow" antes de iniciar la sesión, reforzando la psicología del entrenamiento.
+
+**[2026-03-19] - Importación del plan nutricional vulnerable a duplicados**
+- **Problema**: El diario podía acumular `meal_logs` duplicados para el mismo `user_id + date + meal_type`, y el importador del plan semanal trabajaba sobre esos datos sin consolidarlos. Eso abría la puerta a secciones repetidas y a estados mezclados al trasladar el plan al diario.
+- **Solución**: El importador ahora consolida duplicados antes de escribir, inserta el nuevo bloque Gemini antes de retirar el anterior y se añadió una migración de hardening en `scripts/nutrition_meal_logs_hardening.sql` junto con un índice único documentado en los esquemas SQL.
+
+**[2026-03-19] - Importación del plan nutricional sin transacción en cliente**
+- **Problema**: Aunque se endureció el flujo cliente, múltiples llamadas HTTP seguían dejando una ventana para importaciones parciales si Supabase fallaba a mitad del proceso.
+- **Solución**: Se añadió una RPC transaccional documentada en `scripts/nutrition_import_plan_rpc.sql`. La app intenta usarla primero y, si aún no existe en la base de datos, hace fallback al importador local endurecido para no bloquear el producto durante la migración.

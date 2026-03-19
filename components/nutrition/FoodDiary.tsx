@@ -37,12 +37,16 @@ const EXTRA_MEAL_OPTIONS = [
 
 interface Props {
     userId: string;
+    focusDate?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function dateToISO(d: Date) {
-    return d.toISOString().slice(0, 10);
+    const year = d.getFullYear();
+    const month = `${d.getMonth() + 1}`.padStart(2, '0');
+    const day = `${d.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function formatDate(d: Date) {
@@ -70,7 +74,7 @@ function MacroBar({ label, value, max, color, unit = 'g' }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function FoodDiary({ userId }: Props) {
+export default function FoodDiary({ userId, focusDate }: Props) {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
 
@@ -80,6 +84,15 @@ export default function FoodDiary({ userId }: Props) {
     const [searchTarget, setSearchTarget] = useState<MealSection | null>(null);
     const [showAddMealMenu, setShowAddMealMenu] = useState(false);
     const [targets, setTargets] = useState({ kcal: 2000, protein: 150, carbs: 225, fat: 56 });
+    const availableExtraMealOptions = EXTRA_MEAL_OPTIONS.filter(
+        (option) => !meals.some((meal) => meal.meal_type === option.meal_type)
+    );
+
+    useEffect(() => {
+        if (focusDate) {
+            setDate(new Date(`${focusDate}T12:00:00`));
+        }
+    }, [focusDate]);
 
     // Reload nutrition targets every time this screen is focused
     useFocusEffect(
@@ -189,6 +202,9 @@ export default function FoodDiary({ userId }: Props) {
 
     const handleAddMealSection = async (type: string, label: string) => {
         setShowAddMealMenu(false);
+        if (meals.some((meal) => meal.meal_type === type)) {
+            return;
+        }
         try {
             const isoDate = dateToISO(date);
             const sort = Math.max(...meals.map(m => m.sort_order), 0) + 1;
@@ -325,7 +341,7 @@ export default function FoodDiary({ userId }: Props) {
                                         >
                                             <View className="flex-1 mr-3">
                                                 <View className="flex-row items-center gap-x-2 mb-0.5">
-                                                    <Text className={`font-bold text-sm flex-1 ${isDark ? 'text-white' : 'text-slate-900'}`} numberOfLines={1}>
+                                                <Text className={`font-bold text-sm flex-1 ${isDark ? 'text-white' : 'text-slate-900'}`} numberOfLines={1}>
                                                         {item.name}
                                                     </Text>
                                                     {item.nutri_score && NUTRI_SCORE_COLORS[item.nutri_score] && (
@@ -336,9 +352,15 @@ export default function FoodDiary({ userId }: Props) {
                                                         </View>
                                                     )}
                                                 </View>
-                                                <Text className={`text-[10px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                                                    {item.quantity_g}g · {item.kcal} kcal · P {item.protein_g}g · C {item.carbs_g}g · G {item.fat_g}g
-                                                </Text>
+                                                {item.source === 'gemini' ? (
+                                                    <Text className={`text-[10px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                                                        Plan importado · {item.kcal} kcal aprox
+                                                    </Text>
+                                                ) : (
+                                                    <Text className={`text-[10px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                                                        {item.quantity_g}g · {item.kcal} kcal · P {item.protein_g}g · C {item.carbs_g}g · G {item.fat_g}g
+                                                    </Text>
+                                                )}
                                             </View>
                                             <TouchableOpacity
                                                 onPress={() => handleDeleteItem(meal.id, item.id)}
@@ -357,7 +379,14 @@ export default function FoodDiary({ userId }: Props) {
                 {/* Añadir nueva sección de comida */}
                 {showAddMealMenu ? (
                     <View className={`rounded-[28px] border overflow-hidden mb-4 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
-                        {EXTRA_MEAL_OPTIONS.map(opt => (
+                        {availableExtraMealOptions.length === 0 && (
+                            <View className={`px-5 py-4 border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                                <Text className={`font-medium text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                                    Ya has añadido todas las secciones disponibles para este día.
+                                </Text>
+                            </View>
+                        )}
+                        {availableExtraMealOptions.map(opt => (
                             <TouchableOpacity
                                 key={opt.meal_type}
                                 onPress={() => handleAddMealSection(opt.meal_type, opt.meal_label)}

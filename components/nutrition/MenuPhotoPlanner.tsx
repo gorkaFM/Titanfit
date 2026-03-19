@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     View, Text, TouchableOpacity, SafeAreaView, ScrollView,
     ActivityIndicator, Platform, Alert
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { Camera, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText } from 'lucide-react-native';
-import { ACTIVE_GEMINI_MODELS, analyzeMenuAsset, DayPlan, generateShoppingListFromPlan, ShoppingItem } from '@/lib/menuPlannerService';
+import { Camera, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CheckSquare, Square, ClipboardList } from 'lucide-react-native';
+import { ACTIVE_GEMINI_MODELS, analyzeMenuAsset, DayPlan, generateShoppingListFromPlan, importPlanToDiary, ShoppingItem } from '@/lib/menuPlannerService';
+import { clearPlannerState, loadPlannerState, PersistedShoppingCategory, savePlannerState } from '@/lib/nutritionPlannerStorage';
 
 // ─── Helpers de selección de imagen / PDF ─────────────────────────────────────
 
@@ -75,15 +76,84 @@ async function pickFile(mode: 'camera' | 'gallery' | 'pdf'): Promise<{ base64: s
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function MenuPhotoPlanner() {
+interface MenuPhotoPlannerProps {
+    userId: string;
+    resetSignal: number;
+    resetMode: 'plan' | 'all';
+    onTransferToDiary: (focusDate: string) => void;
+    onDraftStateChange: (state: { hasDraft: boolean; importedToDiary: boolean }) => void;
+}
+
+function toPersistedShopping(shoppingList: ShoppingItem[]): PersistedShoppingCategory[] {
+    return shoppingList.map((category, categoryIndex) => ({
+        category: category.category,
+        items: category.items.map((item, itemIndex) => ({
+            id: `${categoryIndex}-${itemIndex}-${item}`,
+            label: item,
+            checked: false,
+        })),
+    }));
+}
+
+export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTransferToDiary, onDraftStateChange }: MenuPhotoPlannerProps) {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
 
     const [phase, setPhase] = useState<'idle' | 'analyzing' | 'plan' | 'shopping'>('idle');
     const [plan, setPlan] = useState<DayPlan[]>([]);
-    const [shopping, setShopping] = useState<ShoppingItem[]>([]);
+    const [shopping, setShopping] = useState<PersistedShoppingCategory[]>([]);
     const [error, setError] = useState('');
     const [expandedDay, setExpandedDay] = useState<string | null>(null);
+    const [importing, setImporting] = useState(false);
+    const [importedToDiary, setImportedToDiary] = useState(false);
+    const [importedDiaryStartDate, setImportedDiaryStartDate] = useState<string | null>(null);
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+        loadPlannerState(userId).then((storedState) => {
+            if (!mounted || !storedState) return;
+
+            setPlan(storedState.plan);
+            setShopping(storedState.shopping);
+            setExpandedDay(storedState.expandedDay);
+            setImportedToDiary(storedState.importedToDiary);
+            setImportedDiaryStartDate(storedState.importedDiaryStartDate ?? null);
+
+            if (storedState.shopping.length > 0) {
+                setPhase('shopping');
+            } else if (storedState.plan.length > 0) {
+                setPhase('plan');
+            }
+        }).finally(() => {
+            if (mounted) setHydrated(true);
+        });
+
+        return () => {
+            mounted = false;
+        };
+    }, [userId]);
+
+    useEffect(() => {
+        if (!hydrated) return;
+
+        const hasPlan = plan.length > 0;
+        onDraftStateChange({ hasDraft: hasPlan, importedToDiary });
+
+        if (!hasPlan && shopping.length === 0) {
+            clearPlannerState(userId);
+            return;
+        }
+
+        savePlannerState(userId, {
+            plan,
+            shopping,
+            expandedDay,
+            importedToDiary,
+            importedDiaryStartDate,
+            updatedAt: new Date().toISOString(),
+        });
+    }, [expandedDay, hydrated, importedDiaryStartDate, importedToDiary, onDraftStateChange, plan, shopping, userId]);
 
     const handlePick = async (mode: 'camera' | 'gallery' | 'pdf') => {
         setError('');
@@ -95,6 +165,9 @@ export default function MenuPhotoPlanner() {
             const result = await analyzeMenuAsset(file.base64, file.mimeType);
             if (!result.length) throw new Error('No se pudo generar el plan');
             setPlan(result);
+            setShopping([]);
+            setImportedToDiary(false);
+            setImportedDiaryStartDate(null);
             setPhase('plan');
             setExpandedDay(result[0]?.day ?? null);
         } catch (e: any) {
@@ -107,17 +180,80 @@ export default function MenuPhotoPlanner() {
         setPhase('analyzing');
         try {
             const list = await generateShoppingListFromPlan(plan);
-            setShopping(list);
+            setShopping(toPersistedShopping(list));
             setPhase('shopping');
-        } catch {
-            setError('Error generando la lista');
+        } catch (e: any) {
+            setError(e.message ?? 'Error generando la lista');
             setPhase('plan');
         }
     };
 
-    const handleReset = () => {
-        setPlan([]); setShopping([]); setError(''); setExpandedDay(null); setPhase('idle');
+    const handleReset = useCallback(({ clearShopping = false }: { clearShopping?: boolean } = {}) => {
+        setPlan([]);
+        setError('');
+        setExpandedDay(null);
+        setImportedToDiary(false);
+        setImportedDiaryStartDate(null);
+        if (clearShopping) {
+            setShopping([]);
+        }
+        setPhase(clearShopping || shopping.length === 0 ? 'idle' : 'shopping');
+    }, [shopping.length]);
+
+    useEffect(() => {
+        if (resetSignal > 0) {
+            handleReset({ clearShopping: resetMode === 'all' });
+        }
+    }, [handleReset, resetMode, resetSignal]);
+
+    const handleImportToDiary = async () => {
+        if (importedToDiary) {
+            onTransferToDiary(importedDiaryStartDate ?? new Date().toISOString().slice(0, 10));
+            return;
+        }
+        if (plan.length === 0) return;
+        setImporting(true);
+        setError('');
+
+        try {
+            const imported = await importPlanToDiary(userId, plan);
+            setImportedToDiary(true);
+            setImportedDiaryStartDate(imported.firstDate);
+            Alert.alert(
+                'Plan trasladado al diario',
+                `Se ha guardado desde ${imported.firstDate} hasta ${imported.lastDate}.`
+            );
+            onTransferToDiary(imported.firstDate);
+        } catch (e: any) {
+            setError(e.message ?? 'No se pudo trasladar el plan al diario');
+        } finally {
+            setImporting(false);
+        }
     };
+
+    const toggleShoppingItem = (categoryName: string, itemId: string) => {
+        setShopping((current) =>
+            current.map((category) =>
+                category.category === categoryName
+                    ? {
+                          ...category,
+                          items: category.items.map((item) =>
+                              item.id === itemId ? { ...item, checked: !item.checked } : item
+                          ),
+                      }
+                    : category
+            )
+        );
+    };
+
+    const completedShoppingItems = useMemo(
+        () => shopping.reduce((total, category) => total + category.items.filter((item) => item.checked).length, 0),
+        [shopping]
+    );
+    const totalShoppingItems = useMemo(
+        () => shopping.reduce((total, category) => total + category.items.length, 0),
+        [shopping]
+    );
 
     // ─── Render idle ──────────────────────────────────────────────────────────
     const renderIdle = () => (
@@ -134,6 +270,16 @@ export default function MenuPhotoPlanner() {
             <Text className={`text-center font-bold text-[10px] uppercase tracking-widest mb-6 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
                 IA activa: {ACTIVE_GEMINI_MODELS.join(' -> ')}
             </Text>
+
+            {shopping.length > 0 && (
+                <TouchableOpacity
+                    onPress={() => setPhase('shopping')}
+                    className={`w-full px-8 py-4 rounded-[24px] mb-4 flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-sm'}`}
+                >
+                    <ClipboardList size={18} color="#10b981" />
+                    <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Ver lista guardada</Text>
+                </TouchableOpacity>
+            )}
 
             {/* 3 botones de acción */}
             <View className="w-full gap-y-3">
@@ -198,7 +344,7 @@ export default function MenuPhotoPlanner() {
                     <TouchableOpacity onPress={() => handlePick('gallery')} className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-zinc-900' : 'bg-slate-100'}`}>
                         <RefreshCw size={16} color={isDark ? '#e4e4e7' : '#475569'} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={handleReset} className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-zinc-900' : 'bg-slate-100'}`}>
+                    <TouchableOpacity onPress={() => handleReset()} className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-zinc-900' : 'bg-slate-100'}`}>
                         <X size={16} color={isDark ? '#e4e4e7' : '#475569'} />
                     </TouchableOpacity>
                 </View>
@@ -230,6 +376,30 @@ export default function MenuPhotoPlanner() {
                 );
             })}
 
+            {error ? (
+                <View className="mb-4 bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4">
+                    <Text className="text-red-500 font-bold text-sm text-center">{error}</Text>
+                </View>
+            ) : null}
+
+            <TouchableOpacity
+                onPress={handleImportToDiary}
+                disabled={importing}
+                className="bg-blue-600 mb-3 py-5 rounded-[32px] flex-row items-center justify-center gap-x-3 shadow-xl shadow-blue-500/20"
+                activeOpacity={0.85}
+            >
+                {importing ? (
+                    <ActivityIndicator color="#ffffff" />
+                ) : (
+                    <>
+                        <ClipboardList size={22} color="#ffffff" />
+                        <Text className="text-white font-black text-base uppercase tracking-wider">
+                            {importedToDiary ? 'Abrir en Diario' : 'Llevar al Diario'}
+                        </Text>
+                    </>
+                )}
+            </TouchableOpacity>
+
             <TouchableOpacity
                 onPress={handleGenerateShopping}
                 className="bg-emerald-600 mt-2 py-5 rounded-[32px] flex-row items-center justify-center gap-x-3 shadow-xl shadow-emerald-500/20"
@@ -247,7 +417,7 @@ export default function MenuPhotoPlanner() {
             <View className="flex-row items-center justify-between mb-5 pt-4">
                 <View>
                     <Text className={`font-black text-2xl uppercase tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}>Lista de la Compra</Text>
-                    <Text className={`font-bold text-[10px] uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Organizada por categorías</Text>
+                    <Text className={`font-bold text-[10px] uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Organizada por categorías · {completedShoppingItems}/{totalShoppingItems}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setPhase('plan')} className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-zinc-900' : 'bg-slate-100'}`}>
                     <X size={16} color={isDark ? '#e4e4e7' : '#475569'} />
@@ -260,16 +430,31 @@ export default function MenuPhotoPlanner() {
                         <Text className={`font-black text-sm uppercase tracking-widest ${isDark ? 'text-white' : 'text-slate-900'}`}>{cat.category}</Text>
                     </View>
                     {cat.items.map((item, i) => (
-                        <View key={i} className={`flex-row items-center px-5 py-3 ${i < cat.items.length - 1 ? `border-b ${isDark ? 'border-zinc-800/50' : 'border-slate-50'}` : ''}`}>
-                            <View className="w-2 h-2 rounded-full bg-blue-500 mr-3" />
-                            <Text className={`font-medium text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{item}</Text>
-                        </View>
+                        <TouchableOpacity
+                            key={item.id}
+                            onPress={() => toggleShoppingItem(cat.category, item.id)}
+                            className={`flex-row items-center px-5 py-3 ${i < cat.items.length - 1 ? `border-b ${isDark ? 'border-zinc-800/50' : 'border-slate-50'}` : ''}`}
+                            activeOpacity={0.8}
+                        >
+                            {item.checked ? (
+                                <CheckSquare size={18} color="#10b981" />
+                            ) : (
+                                <Square size={18} color={isDark ? '#71717a' : '#94a3b8'} />
+                            )}
+                            <Text className={`font-medium text-sm ml-3 ${item.checked ? 'line-through text-zinc-500' : (isDark ? 'text-zinc-300' : 'text-slate-700')}`}>{item.label}</Text>
+                        </TouchableOpacity>
                     ))}
                 </View>
             ))}
 
-            <TouchableOpacity onPress={handleReset} className={`py-4 rounded-[28px] items-center border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200'}`}>
-                <Text className={`font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Nuevo análisis</Text>
+            {error ? (
+                <View className="mb-4 bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4">
+                    <Text className="text-red-500 font-bold text-sm text-center">{error}</Text>
+                </View>
+            ) : null}
+
+            <TouchableOpacity onPress={() => handleReset({ clearShopping: true })} className={`py-4 rounded-[28px] items-center border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200'}`}>
+                <Text className={`font-bold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Borrar lista guardada</Text>
             </TouchableOpacity>
         </ScrollView>
     );
