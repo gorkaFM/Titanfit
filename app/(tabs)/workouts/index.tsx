@@ -8,11 +8,13 @@ import { ChevronRight, Eye, Flame, History, Plus, Trash2, Zap } from 'lucide-rea
 import React, { useEffect, useState, useCallback } from 'react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ActivityIndicator, Platform, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 
 export default function WorkoutsScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const tabBarHeight = useBottomTabBarHeight();
     const { user } = useAuth();
     const router = useRouter();
     const { isActive } = useWorkout();
@@ -95,7 +97,7 @@ export default function WorkoutsScreen() {
         <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
             <ScrollView
                 className="flex-1 px-6"
-                contentContainerStyle={{ paddingTop: Platform.OS === 'android' ? 40 : 20, paddingBottom: 120 }}
+                contentContainerStyle={{ paddingTop: Platform.OS === 'android' ? 40 : 20, paddingBottom: tabBarHeight + 32 }}
                 showsVerticalScrollIndicator={false}
             >
 

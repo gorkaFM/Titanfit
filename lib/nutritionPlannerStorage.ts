@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { DayPlan, MealRecipe } from '@/lib/menuPlannerService';
 
@@ -31,7 +31,7 @@ async function getItem(key: string) {
   if (Platform.OS === 'web') {
     return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
   }
-  return SecureStore.getItemAsync(key);
+  return AsyncStorage.getItem(key);
 }
 
 async function setItem(key: string, value: string) {
@@ -41,7 +41,7 @@ async function setItem(key: string, value: string) {
     }
     return;
   }
-  await SecureStore.setItemAsync(key, value);
+  await AsyncStorage.setItem(key, value);
 }
 
 async function deleteItem(key: string) {
@@ -51,7 +51,7 @@ async function deleteItem(key: string) {
     }
     return;
   }
-  await SecureStore.deleteItemAsync(key);
+  await AsyncStorage.removeItem(key);
 }
 
 export async function loadPlannerState(userId: string): Promise<PersistedPlannerState | null> {

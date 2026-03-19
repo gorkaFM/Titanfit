@@ -8,6 +8,7 @@ import Svg, { Polyline } from 'react-native-svg';
 import { LineChart } from 'react-native-chart-kit';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -47,6 +48,7 @@ const MiniLineChart = ({ data, color }: { data: number[], color: string }) => {
 export default function ProfileScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const tabBarHeight = useBottomTabBarHeight();
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -219,7 +221,7 @@ export default function ProfileScreen() {
         <ScrollView
             className="flex-1 px-6 pt-4"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 120 }}
+            contentContainerStyle={{ paddingBottom: tabBarHeight + 32 }}
         >
                 {/* Header Profile */}
                 <View className="flex-row items-center mb-10">

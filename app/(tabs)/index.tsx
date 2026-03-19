@@ -7,10 +7,12 @@ import { useRouter } from 'expo-router';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BodyHeatmap } from '@/components/BodyHeatmap';
 import { useColorScheme } from 'nativewind';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 export default function DashboardScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const tabBarHeight = useBottomTabBarHeight();
     const router = useRouter();
     const { user } = useAuth();
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
@@ -67,7 +69,11 @@ export default function DashboardScreen() {
 
     return (
         <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
-            <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
+            <ScrollView
+                className="flex-1 px-6 pt-4"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: tabBarHeight + 32 }}
+            >
                 {/* Header */}
                 <View className="flex-row items-center justify-between mb-8">
                     <View>
@@ -170,8 +176,6 @@ export default function DashboardScreen() {
                                 </View>
                             </View>
                         </TouchableOpacity>
-                        
-                        <View className="h-32" />
                     </>
                 )}
             </ScrollView>

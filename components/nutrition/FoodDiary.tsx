@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-    View, Text, ScrollView, TouchableOpacity, SafeAreaView,
+    View, Text, ScrollView, TouchableOpacity, SafeAreaView, Modal,
     ActivityIndicator
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { Plus, Trash2, ChevronLeft, ChevronRight, Zap } from 'lucide-react-native';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Zap, FileText, Utensils, X } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { MealLogItem, NUTRI_SCORE_COLORS } from '@/lib/foodSearchService';
 import FoodSearchModal from './FoodSearchModal';
 import ThemeToggle from '@/components/ThemeToggle';
+import { generateRecipeForMeal, MealRecipe } from '@/lib/menuPlannerService';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -77,6 +79,7 @@ function MacroBar({ label, value, max, color, unit = 'g' }: {
 export default function FoodDiary({ userId, focusDate }: Props) {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const tabBarHeight = useBottomTabBarHeight();
 
     const [date, setDate] = useState(new Date());
     const [meals, setMeals] = useState<MealSection[]>([]);
@@ -84,6 +87,9 @@ export default function FoodDiary({ userId, focusDate }: Props) {
     const [searchTarget, setSearchTarget] = useState<MealSection | null>(null);
     const [showAddMealMenu, setShowAddMealMenu] = useState(false);
     const [targets, setTargets] = useState({ kcal: 2000, protein: 150, carbs: 225, fat: 56 });
+    const [recipeLoading, setRecipeLoading] = useState(false);
+    const [recipeTarget, setRecipeTarget] = useState<{ mealLabel: string; itemName: string; kcal: number } | null>(null);
+    const [recipes, setRecipes] = useState<Record<string, MealRecipe>>({});
     const availableExtraMealOptions = EXTRA_MEAL_OPTIONS.filter(
         (option) => !meals.some((meal) => meal.meal_type === option.meal_type)
     );
@@ -233,6 +239,29 @@ export default function FoodDiary({ userId, focusDate }: Props) {
     }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 
     // Targets are now loaded from the user profile
+    const getRecipeKey = (mealLabel: string, itemName: string) => `${mealLabel}::${itemName}`;
+    const activeRecipe = recipeTarget ? recipes[getRecipeKey(recipeTarget.mealLabel, recipeTarget.itemName)] : null;
+
+    const handleOpenRecipe = async (mealLabel: string, itemName: string, kcal: number) => {
+        const recipeKey = getRecipeKey(mealLabel, itemName);
+        setRecipeTarget({ mealLabel, itemName, kcal });
+
+        if (recipes[recipeKey]) {
+            return;
+        }
+
+        setRecipeLoading(true);
+        try {
+            const recipe = await generateRecipeForMeal(formatDate(date), {
+                meal: mealLabel,
+                foods: itemName,
+                kcal_approx: Math.round(kcal),
+            });
+            setRecipes((current) => ({ ...current, [recipeKey]: recipe }));
+        } finally {
+            setRecipeLoading(false);
+        }
+    };
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -249,7 +278,7 @@ export default function FoodDiary({ userId, focusDate }: Props) {
 
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 120 }}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: tabBarHeight + 32 }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Navegador de fecha */}
@@ -362,12 +391,22 @@ export default function FoodDiary({ userId, focusDate }: Props) {
                                                     </Text>
                                                 )}
                                             </View>
-                                            <TouchableOpacity
-                                                onPress={() => handleDeleteItem(meal.id, item.id)}
-                                                className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`}
-                                            >
-                                                <Trash2 size={14} color="#ef4444" />
-                                            </TouchableOpacity>
+                                            <View className="flex-row items-center gap-x-2">
+                                                {item.source === 'gemini' && (
+                                                    <TouchableOpacity
+                                                        onPress={() => handleOpenRecipe(meal.meal_label, item.name, item.kcal ?? 0)}
+                                                        className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`}
+                                                    >
+                                                        <FileText size={14} color="#3b82f6" />
+                                                    </TouchableOpacity>
+                                                )}
+                                                <TouchableOpacity
+                                                    onPress={() => handleDeleteItem(meal.id, item.id)}
+                                                    className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`}
+                                                >
+                                                    <Trash2 size={14} color="#ef4444" />
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
                                     ))
                                 )}
@@ -426,6 +465,68 @@ export default function FoodDiary({ userId, focusDate }: Props) {
                     }}
                 />
             )}
+            <Modal visible={!!recipeTarget} animationType="slide" transparent onRequestClose={() => setRecipeTarget(null)}>
+                <View className="flex-1 bg-black/70 justify-end">
+                    <View className={`rounded-t-[32px] px-6 pt-6 pb-10 max-h-[85%] ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+                        <View className="flex-row items-start justify-between mb-5 gap-x-4">
+                            <View className="flex-1">
+                                <Text className={`font-bold text-[10px] uppercase tracking-[3px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                                    {recipeTarget?.mealLabel}
+                                </Text>
+                                <Text className={`font-black text-2xl mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    {activeRecipe?.title ?? recipeTarget?.mealLabel}
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setRecipeTarget(null)}
+                                className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-zinc-900' : 'bg-white border border-slate-200'}`}
+                            >
+                                <X size={16} color={isDark ? '#e4e4e7' : '#475569'} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {recipeLoading && !activeRecipe ? (
+                            <View className="py-16 items-center justify-center">
+                                <ActivityIndicator color="#3b82f6" />
+                                <Text className={`mt-4 font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                                    Generando receta...
+                                </Text>
+                            </View>
+                        ) : activeRecipe ? (
+                            <ScrollView showsVerticalScrollIndicator={false}>
+                                <View className={`rounded-[28px] border p-5 mb-4 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                    <View className="flex-row items-center mb-4">
+                                        <Utensils size={16} color="#3b82f6" />
+                                        <Text className={`font-black text-sm uppercase tracking-widest ml-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                            Ingredientes
+                                        </Text>
+                                    </View>
+                                    {activeRecipe.ingredients.map((ingredient, index) => (
+                                        <Text key={`${ingredient}-${index}`} className={`font-medium text-sm mb-2 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                                            • {ingredient}
+                                        </Text>
+                                    ))}
+                                </View>
+                                <View className={`rounded-[28px] border p-5 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                    <Text className={`font-black text-sm uppercase tracking-widest mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                        Preparación
+                                    </Text>
+                                    {activeRecipe.steps.map((step, index) => (
+                                        <View key={`${step}-${index}`} className="flex-row items-start mb-4">
+                                            <View className="w-7 h-7 rounded-full bg-blue-600 items-center justify-center mt-0.5">
+                                                <Text className="text-white font-black text-[11px]">{index + 1}</Text>
+                                            </View>
+                                            <Text className={`flex-1 ml-3 font-medium text-sm leading-6 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                                                {step}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </ScrollView>
+                        ) : null}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
