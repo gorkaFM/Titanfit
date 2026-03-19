@@ -20,36 +20,32 @@ export default function Root({ children }: PropsWithChildren) {
           content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
 
-        {/* PWA meta tags */}
+        {/* PWA manifest – tells the browser this is an installable app */}
+        <link rel="manifest" href="/manifest.json" />
+
+        {/* iOS PWA meta tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        {/* "black" keeps status bar dark; content renders below it (no overlap) */}
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        {/* "black-translucent" = fullscreen, content extends behind the status bar */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="TitanFit" />
 
+        {/* Touch icon for iOS home screen */}
+        <link rel="apple-touch-icon" href="/assets/images/icon.png" />
+
         {/* Theme color for Android PWA chrome and iOS task switcher */}
-        <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#09090b" />
 
         {/* Expo: resets scroll-view default styles that conflict with safe area */}
         <ScrollViewStyleReset />
 
-        {/*
-          Global CSS safe-area helpers.
-          On iOS PWA with viewport-fit=cover, these CSS env() values include real device insets.
-          Without viewport-fit=cover they are always 0.
-        */}
         <style dangerouslySetInnerHTML={{
           __html: `
-            :root {
-              --sat: env(safe-area-inset-top, 0px);
-              --sar: env(safe-area-inset-right, 0px);
-              --sab: env(safe-area-inset-bottom, 0px);
-              --sal: env(safe-area-inset-left, 0px);
-            }
             body {
-              background-color: #09090b; /* zinc-950 — matches dark mode app bg */
+              background-color: #09090b;
               overflow: hidden;
             }
+            /* Ensure the app never shows a white flash on iOS */
+            html { background-color: #09090b; }
           `
         }} />
       </head>

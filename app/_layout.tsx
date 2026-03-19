@@ -7,6 +7,8 @@ import '../global.css';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from 'nativewind';
 import { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -53,8 +55,11 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
+

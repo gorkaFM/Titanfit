@@ -2,33 +2,21 @@ import { useColorScheme } from 'nativewind';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, Dumbbell, User, UtensilsCrossed } from 'lucide-react-native';
-import { Platform, StyleSheet, ViewStyle } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const schemeTools = useColorScheme();
   const colorScheme = typeof schemeTools === 'object' ? schemeTools.colorScheme : schemeTools;
   const isDark = colorScheme === 'dark';
 
-  const isWeb = Platform.OS === 'web';
-  const isNativeIOS = Platform.OS === 'ios';
+  // Get real safe area insets from SafeAreaProvider
+  // On native: device insets. On web PWA (viewport-fit=cover): insets from CSS env()
+  const insets = useSafeAreaInsets();
 
-  const tabBarStyle: ViewStyle = {
-    position: 'absolute',
-    backgroundColor: isDark ? 'rgba(9, 9, 11, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-    borderTopWidth: 0,
-    elevation: 0,
-    // Native iOS: fixed height with home indicator padding
-    height: isNativeIOS ? 88 : 80,
-    paddingBottom: isNativeIOS ? 28 : 16,
-    paddingTop: 10,
-  };
-
-  // Web/PWA: override with CSS-aware safe area values
-  const webOverride = isWeb ? ({
-    // @ts-ignore – valid CSS values, ignored by RN native
-    paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
-    height: 'calc(68px + env(safe-area-inset-bottom))',
-  } as unknown as ViewStyle) : {};
+  // Tab bar height = content height + home-indicator clearance
+  const TAB_CONTENT_HEIGHT = 56;
+  const tabBarHeight = TAB_CONTENT_HEIGHT + insets.bottom;
 
   return (
     <Tabs
@@ -36,10 +24,21 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: isDark ? '#3b82f6' : '#2563eb',
         tabBarInactiveTintColor: isDark ? '#52525b' : '#94a3b8',
-        tabBarStyle: { ...tabBarStyle, ...webOverride },
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: isDark ? 'rgba(9, 9, 11, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+          borderTopWidth: 0,
+          elevation: 0,
+          height: tabBarHeight,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === 'web' ? 12 : 8,
+          paddingTop: 8,
+        },
         tabBarBackground: () => (
           <BlurView
-            intensity={isDark ? 50 : 80}
+            intensity={isDark ? 60 : 90}
             tint={isDark ? 'dark' : 'light'}
             style={StyleSheet.absoluteFill}
           />
