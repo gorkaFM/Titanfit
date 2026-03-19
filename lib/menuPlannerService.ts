@@ -35,6 +35,8 @@ interface ImportPlanRpcResult {
 }
 
 export const ACTIVE_GEMINI_MODELS = GEMINI_MODELS;
+const MIN_PLAN_DAYS = 7;
+const MIN_MEALS_PER_DAY = 3;
 
 const MENU_PLAN_PROMPT = `Eres un nutricionista experto. Analiza el menu, receta o lista de alimentos proporcionada y genera un plan alimentario semanal de 7 dias siguiendo el mismo estilo de cocina y alimentos visibles.
 
@@ -149,7 +151,55 @@ function parseJsonResponse(raw: string) {
   throw lastError ?? new Error('No se pudo extraer JSON valido de la respuesta.');
 }
 
-async function callGemini(parts: { text?: string; inline_data?: { mime_type: string; data: string } }[], maxOutputTokens: number) {
+function normalizeWeeklyPlan(rawPlan: unknown): DayPlan[] {
+  if (!Array.isArray(rawPlan)) {
+    throw new Error('La IA no devolvio una lista de dias valida.');
+  }
+
+  if (rawPlan.length < MIN_PLAN_DAYS) {
+    throw new Error(`La IA devolvio un plan incompleto (${rawPlan.length}/${MIN_PLAN_DAYS} dias).`);
+  }
+
+  const normalizedPlan = rawPlan.map((dayEntry, dayIndex) => {
+    const day = typeof dayEntry?.day === 'string' ? dayEntry.day.trim() : '';
+    const meals = Array.isArray(dayEntry?.meals) ? dayEntry.meals : [];
+
+    if (!day) {
+      throw new Error(`El dia ${dayIndex + 1} del plan no tiene nombre valido.`);
+    }
+
+    if (meals.length < MIN_MEALS_PER_DAY) {
+      throw new Error(`El dia ${day} esta incompleto (${meals.length} comidas).`);
+    }
+
+    return {
+      day,
+      meals: meals.map((mealEntry: any, mealIndex: number) => {
+        const meal = typeof mealEntry?.meal === 'string' ? mealEntry.meal.trim() : '';
+        const foods = typeof mealEntry?.foods === 'string' ? mealEntry.foods.trim() : '';
+        const kcal = Math.round(Number(mealEntry?.kcal_approx) || 0);
+
+        if (!meal || !foods) {
+          throw new Error(`La comida ${mealIndex + 1} de ${day} no es valida.`);
+        }
+
+        return {
+          meal,
+          foods,
+          kcal_approx: kcal,
+        };
+      }),
+    };
+  });
+
+  return normalizedPlan.slice(0, MIN_PLAN_DAYS);
+}
+
+async function callGemini(
+  parts: { text?: string; inline_data?: { mime_type: string; data: string } }[],
+  maxOutputTokens: number,
+  validator?: (parsed: any) => any
+) {
   ensureGeminiKey();
 
   let lastError = 'No se pudo contactar con Gemini.';
@@ -174,7 +224,8 @@ async function callGemini(parts: { text?: string; inline_data?: { mime_type: str
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
       try {
-        return parseJsonResponse(raw);
+        const parsed = parseJsonResponse(raw);
+        return validator ? validator(parsed) : parsed;
       } catch (error) {
         lastError = `${model} -> ${(error as Error).message}`;
         continue;
@@ -202,7 +253,8 @@ async function analyzeMenuInline(base64: string, mimeType: string) {
       { text: MENU_PLAN_PROMPT },
       { inline_data: { mime_type: mimeType, data: stripDataUrlPrefix(base64) } },
     ],
-    4000
+    6000,
+    (parsed) => normalizeWeeklyPlan(parsed?.plan ?? [])
   );
 }
 
@@ -212,7 +264,7 @@ async function generatePlanFromText(menuText: string) {
 TEXTO EXTRAIDO DEL MENU:
 ${menuText}`;
 
-  return callGemini([{ text: prompt }], 4000);
+  return callGemini([{ text: prompt }], 6000, (parsed) => normalizeWeeklyPlan(parsed?.plan ?? []));
 }
 
 function base64ToUint8Array(base64: string) {
@@ -285,9 +337,8 @@ export async function analyzeMenuAsset(base64: string, mimeType: string): Promis
 
   try {
     const parsed = await analyzeMenuInline(base64, mimeType);
-    const plan = parsed?.plan ?? [];
-    if (plan.length) {
-      return plan;
+    if (parsed.length) {
+      return parsed;
     }
   } catch (error) {
     inlineError = error instanceof Error ? error.message : 'Fallo desconocido en el analisis directo';
@@ -304,11 +355,9 @@ export async function analyzeMenuAsset(base64: string, mimeType: string): Promis
     throw new Error(inlineError || 'No se pudo extraer suficiente texto del archivo.');
   }
 
-  const parsed = await generatePlanFromText(extractedText);
-  const plan = parsed?.plan ?? [];
-
+  const plan = await generatePlanFromText(extractedText);
   if (!plan.length) {
-    throw new Error('Se extrajo texto, pero no se pudo convertir en un plan semanal valido.');
+    throw new Error('Se extrajo texto, pero no se pudo convertir en un plan semanal completo y valido.');
   }
 
   return plan;
