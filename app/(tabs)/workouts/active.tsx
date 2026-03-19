@@ -866,26 +866,33 @@ export default function ActiveWorkoutScreen() {
         <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
 
             {/* Cabecera Principal y Timer de Sesión */}
-            <View className={`px-4 pb-4 pt-1 border-b ${isDark ? 'border-zinc-900' : 'border-slate-200'}`}>
-                <View className="flex-row items-center justify-between">
+            <View className={`px-4 pb-3 pt-1 border-b ${isDark ? 'border-zinc-900' : 'border-slate-200'}`}>
+                {/* Row 1: nav back ← Finalizar → */}
+                <View className="flex-row items-center justify-between mb-2">
                     <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-                        <ChevronLeft size={28} color={isDark ? "#e4e4e7" : "#0f172a"} />
+                        <ChevronLeft size={28} color={isDark ? '#e4e4e7' : '#0f172a'} />
                     </TouchableOpacity>
-
-                    <View className="items-center">
-                        <Text className={`font-bold text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'} uppercase tracking-widest mb-1`}>Volumen Total: {totalVolume} kg</Text>
-                        <Text className={`font-black text-2xl ${workoutStarted ? 'text-blue-500' : 'text-zinc-500'} tracking-tighter`}>
-                            {formatTime(elapsedWorkoutSeconds)}
-                        </Text>
-                    </View>
 
                     <TouchableOpacity
                         onPress={finishWorkout}
                         disabled={saving}
-                        className={`px-6 py-3 rounded-full bg-blue-600 shadow-xl shadow-blue-500/20 ${saving ? 'opacity-50' : ''}`}
+                        className={`px-5 py-2.5 rounded-full bg-blue-600 shadow-xl shadow-blue-500/20 ${saving ? 'opacity-50' : ''}`}
                     >
-                        {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text className="font-black text-[11px] uppercase tracking-widest text-white">Finalizar Entrenamiento</Text>}
+                        {saving
+                            ? <ActivityIndicator size="small" color="#fff" />
+                            : <Text className="font-black text-[10px] uppercase tracking-widest text-white">Finalizar</Text>
+                        }
                     </TouchableOpacity>
+                </View>
+
+                {/* Row 2: volume + timer centrados */}
+                <View className="items-center">
+                    <Text className={`font-bold text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'} uppercase tracking-widest mb-0.5`}>
+                        Volumen Total: {totalVolume} kg
+                    </Text>
+                    <Text className={`font-black text-3xl ${workoutStarted ? 'text-blue-500' : 'text-zinc-500'} tracking-tighter`}>
+                        {formatTime(elapsedWorkoutSeconds)}
+                    </Text>
                 </View>
 
                 {/* Controles de Inicio Rápido (Solo si hay ejercicios) */}

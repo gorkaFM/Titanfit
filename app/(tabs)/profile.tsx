@@ -221,19 +221,28 @@ export default function ProfileScreen() {
             contentContainerStyle={{ paddingBottom: 120 }}
         >
                 {/* Header Profile */}
-                <View className="flex-row items-center justify-between mb-10">
-                    <View className="flex-row items-center">
-                        <View className={`w-16 h-16 ${isDark ? 'bg-zinc-900 border-blue-600' : 'bg-white border-blue-500 shadow-sm'} rounded-full border-2 items-center justify-center p-1`}>
+                <View className="flex-row items-center mb-10">
+                    {/* Avatar + name — flex-1 + min-w-0 so it shrinks before pushing buttons off */}
+                    <View className="flex-row items-center flex-1 min-w-0 mr-3">
+                        <View className={`w-14 h-14 flex-shrink-0 ${isDark ? 'bg-zinc-900 border-blue-600' : 'bg-white border-blue-500 shadow-sm'} rounded-full border-2 items-center justify-center p-1`}>
                             <View className={`w-full h-full ${isDark ? 'bg-zinc-800' : 'bg-slate-50'} rounded-full items-center justify-center`}>
-                                <User size={24} color={isDark ? '#3b82f6' : '#2563eb'} />
+                                <User size={22} color={isDark ? '#3b82f6' : '#2563eb'} />
                             </View>
                         </View>
-                        <View className="ml-4">
-                            <Text className={`font-black text-xl uppercase tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}>{user?.email?.split('@')[0]}</Text>
+                        <View className="ml-3 flex-1 min-w-0">
+                            <Text
+                                className={`font-black text-base uppercase tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.7}
+                            >
+                                {user?.email?.split('@')[0]}
+                            </Text>
                             <Text className={`font-bold text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Titan Nivel 1</Text>
                         </View>
                     </View>
-                    <View className="flex-row items-center">
+                    {/* Actions — flex-shrink-0 so they never get pushed */}
+                    <View className="flex-row items-center flex-shrink-0 gap-x-2">
                         <ThemeToggle />
                         <TouchableOpacity onPress={() => supabase.auth.signOut()} className={`${isDark ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-3 rounded-2xl border`}>
                             <LogOut size={20} color="#ef4444" />

@@ -158,19 +158,19 @@ export default function DashboardScreen() {
                             </View>
                         </View>
 
-                        {/* Quick Start Action (NUEVO - Posición Corregida) */}
+                        {/* Quick Start Action */}
                         <TouchableOpacity
                             onPress={() => router.push('/workouts/active')}
                             activeOpacity={0.8}
                             className="mb-12 overflow-hidden rounded-[32px] bg-blue-600 shadow-2xl shadow-blue-500/30"
                         >
-                            <View className="p-8 flex-row items-center justify-between">
-                                <View>
-                                    <Text className="text-white font-black text-2xl uppercase tracking-tighter">Iniciar Entrenamiento</Text>
-                                    <Text className="text-white/70 font-bold text-[10px] uppercase tracking-widest mt-1">Registrar sesión de hoy</Text>
+                            <View className="py-7 px-8 items-center justify-center flex-row gap-x-4">
+                                <View className="w-12 h-12 rounded-full bg-white/20 items-center justify-center flex-shrink-0">
+                                    <Plus size={26} color="#ffffff" strokeWidth={3} />
                                 </View>
-                                <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center">
-                                    <Plus size={28} color="#ffffff" strokeWidth={3} />
+                                <View>
+                                    <Text className="text-white font-black text-xl uppercase tracking-tighter">Iniciar Entrenamiento</Text>
+                                    <Text className="text-white/70 font-bold text-[10px] uppercase tracking-widest mt-0.5">Registrar sesión de hoy</Text>
                                 </View>
                             </View>
                         </TouchableOpacity>
