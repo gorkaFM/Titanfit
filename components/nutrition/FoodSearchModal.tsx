@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, FlatList,
-    ActivityIndicator, Modal, SafeAreaView, Keyboard, Platform
+    ActivityIndicator, Modal, SafeAreaView, Keyboard
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { Search, X, Scan, Check, ChevronRight, Minus, Plus } from 'lucide-react-native';
@@ -208,7 +208,7 @@ export default function FoodSearchModal({ visible, mealLabel, onClose, onAddItem
                                 ListEmptyComponent={query.length >= 2 && !loading ? (
                                     <View className="items-center py-16">
                                         <Text className={`font-bold text-[10px] uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                                            Sin resultados para "{query}"
+                                            Sin resultados para {query}
                                         </Text>
                                     </View>
                                 ) : null}

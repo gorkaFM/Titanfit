@@ -10,7 +10,7 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMSG, setErrorMSG] = useState('');
-    const colorScheme = useColorScheme();
+    const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
 
     const handleLogin = async () => {

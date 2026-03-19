@@ -4,8 +4,8 @@ import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { workoutService } from '@/lib/workoutService';
-import { ChevronRight, Eye, Flame, History, Play, Plus, Trash2, Dumbbell, Zap, Activity } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { ChevronRight, Eye, Flame, History, Plus, Trash2, Zap } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback } from 'react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ActivityIndicator, Platform, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -20,7 +20,7 @@ export default function WorkoutsScreen() {
 
     const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
 
-    const fetchWorkouts = async () => {
+    const fetchWorkouts = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
@@ -61,22 +61,22 @@ export default function WorkoutsScreen() {
             });
 
             setRecentWorkouts(processed);
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         fetchWorkouts();
-    }, [user]);
+    }, [fetchWorkouts]);
 
     const handleDeleteWorkout = async (id: string) => {
         try {
             await workoutService.deleteWorkout(id);
             fetchWorkouts();
-        } catch (e) {
+        } catch {
             alert("Error al eliminar");
         }
     };
@@ -349,7 +349,7 @@ export default function WorkoutsScreen() {
                                         </View>
                                         <View className={`w-[1] h-4 ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`} />
                                         <View className="items-center">
-                                            <Text className={`${isDark ? 'text-white' : 'text-slate-900'} font-black text-sm`}>{Math.floor(workout.duration_seconds / 60)}'</Text>
+                                            <Text className={`${isDark ? 'text-white' : 'text-slate-900'} font-black text-sm`}>{Math.floor(workout.duration_seconds / 60)} min</Text>
                                             <Text className={`text-[8px] font-bold ${isDark ? 'text-zinc-500' : 'text-slate-400'} uppercase`}>Tiempo</Text>
                                         </View>
                                     </View>

@@ -4,6 +4,22 @@
 
 ## Registro de Problemas y Soluciones
 
+**[2026-03-19] - Contrato roto del hook de tema bloqueaba el typecheck**
+- **Problema**: `hooks/use-color-scheme.ts` reexportaba el hook de `nativewind`, que devuelve un objeto con `colorScheme` y `setColorScheme`, pero algunos consumidores antiguos como `app/(auth)/login.tsx` y `hooks/use-theme-color.ts` seguían tratándolo como si devolviera un string. Resultado: `npx tsc --noEmit` fallaba y el proyecto no tenía una base estable de compilación.
+- **Solución**: Se unificó el contrato del hook en `hooks/use-color-scheme.ts` y `hooks/use-color-scheme.web.ts`, y se ajustaron los consumidores para leer `colorScheme` explícitamente. Con esto el typecheck vuelve a pasar y se evita que web y native diverjan otra vez en la API del tema.
+
+**[2026-03-19] - Planificador V2 dependía de un único camino multimodal con Gemini**
+- **Problema**: `components/nutrition/MenuPhotoPlanner.tsx` enviaba la imagen o PDF directamente a Gemini y no tenía fallback real. Si el modelo multimodal fallaba con una foto, una imagen o un PDF, el flujo completo de planificación quedaba inutilizado aunque el archivo sí contuviera texto legible.
+- **Solución**: Se extrajo la lógica a `lib/menuPlannerService.ts` y se añadió una estrategia escalonada: primero análisis directo con Gemini, y si falla, extracción local de texto en web/PWA usando `tesseract.js` para imágenes y `pdfjs-dist` para PDF. Luego Gemini genera el plan y la lista de compra a partir del texto extraído. Esto mantiene la V2, conserva el legacy archivado y reduce la dependencia de un único punto frágil.
+
+**[2026-03-19] - Modelo Gemini obsoleto devolvía 404 en el planificador V2**
+- **Problema**: El servicio del planificador seguía apuntando a `gemini-2.0-flash`. Para usuarios nuevos, la API devuelve `404` indicando que ese modelo ya no está disponible, bloqueando incluso el análisis de una simple imagen PNG.
+- **Solución**: Se actualizó `lib/menuPlannerService.ts` para priorizar `gemini-2.5-flash`, añadir fallback a `gemini-2.5-flash-lite` y permitir override con `EXPO_PUBLIC_GEMINI_MODEL`. Además, si la API devuelve `404` para un modelo, el servicio prueba automáticamente el siguiente en vez de romper el flujo al primer intento.
+
+**[2026-03-19] - La PWA podia seguir ejecutando un bundle viejo tras cambiar Gemini**
+- **Problema**: Aunque el código fuente y el `dist` ya apuntaban a `gemini-2.5-*`, el usuario seguía viendo el error viejo de `gemini-2.0-flash`. La causa más probable era caché de HTML/manifest o una shell PWA antigua que seguía referenciando bundles anteriores.
+- **Solución**: Se añadieron cabeceras de `Cache-Control` en `vercel.json` para evitar cachear HTML y `manifest.json`, se versionó el enlace al manifest en `app/+html.tsx` y se fijó `EXPO_PUBLIC_GEMINI_MODEL=gemini-2.5-flash` en entorno. Además, la UI del planificador muestra ahora qué cadena de modelos está activa para verificar rápidamente que el bundle cargado es el nuevo.
+
 **[2026-03-10] - Error de enrutamiento por pantallas faltantes en Tabs (Fase 3)**
 - **Problema**: En `app/(tabs)/_layout.tsx` se han definido tres pestañas (`workouts`, `nutrition`, `profile`), pero en el sistema de archivos solo existe la carpeta `workouts`. Expo Router requiere que los archivos o carpetas (ej. `nutrition.tsx` / `profile.tsx`) existan físicamente para renderizar las rutas de los Tabs, o de lo contrario la aplicación fallará al intentar inicializar el enrutador.
 - **Solución**: El Builder debe crear al menos pantallas de placeholder o en construcción (ej. `nutrition.tsx` y `profile.tsx` en `app/(tabs)/`) para las pestañas definidas en el layout antes de dar la fase por completada, garantizando así que la navegación principal no colapse.

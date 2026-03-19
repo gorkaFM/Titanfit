@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { workoutService } from '@/lib/workoutService';
-import { ChevronLeft, Trophy, Activity, Dumbbell, History, TrendingUp, Info } from 'lucide-react-native';
+import { ChevronLeft, Activity } from 'lucide-react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { BodyHeatmap } from '@/components/BodyHeatmap';
 
@@ -28,7 +28,7 @@ export default function StatisticsScreen() {
     const [keyExerciseData, setKeyExerciseData] = useState<Record<string, any[]>>({});
     const [selectedKeyEx, setSelectedKeyEx] = useState(KEY_EXERCISES[0]);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
@@ -51,16 +51,16 @@ export default function StatisticsScreen() {
             });
             setKeyExerciseData(progressionMap);
 
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         loadData();
-    }, [user]);
+    }, [loadData]);
 
     const heatmapData = useMemo(() => {
         const d = stats?.muscleDistribution || {};

@@ -4,12 +4,6 @@ import { useColorScheme } from 'nativewind';
 import { X, ScanLine, AlertCircle } from 'lucide-react-native';
 import { searchFoodByBarcode, FoodSearchResult } from '@/lib/foodSearchService';
 
-// expo-camera es distinto en web vs native
-let CameraView: any = null;
-if (Platform.OS !== 'web') {
-    try { CameraView = require('expo-camera').CameraView; } catch (_) {}
-}
-
 interface BarcodeScannerProps {
     onResult: (food: FoodSearchResult) => void;
     onClose: () => void;
@@ -23,6 +17,7 @@ export default function BarcodeScanner({ onResult, onClose }: BarcodeScannerProp
     const [scanning, setScanning] = useState(true);
     const [statusMsg, setStatusMsg] = useState('');
     const [error, setError] = useState('');
+    const [CameraView, setCameraView] = useState<any>(null);
     const lastScan = useRef<string>('');
 
     useEffect(() => {
@@ -31,18 +26,28 @@ export default function BarcodeScanner({ onResult, onClose }: BarcodeScannerProp
             setError('El escáner de código de barras no está disponible en el navegador. Usa la búsqueda por texto.');
             return;
         }
+        const loadCamera = async () => {
+            try {
+                const cameraModule = await import('expo-camera');
+                setCameraView(() => cameraModule.CameraView);
+            } catch {
+                setError('Cámara no disponible en este dispositivo.');
+            }
+        };
+
+        loadCamera();
         requestPermission();
     }, []);
 
     const requestPermission = async () => {
         try {
-            const { Camera } = require('expo-camera');
+            const { Camera } = await import('expo-camera');
             const { status } = await Camera.requestCameraPermissionsAsync();
             setPermission(status === 'granted');
             if (status !== 'granted') {
                 setError('TitanFit necesita acceso a tu cámara para escanear.');
             }
-        } catch (_) {
+        } catch {
             setPermission(false);
             setError('Cámara no disponible en este dispositivo.');
         }

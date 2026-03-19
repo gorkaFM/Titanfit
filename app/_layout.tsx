@@ -27,7 +27,7 @@ function RootLayoutNav() {
     if (setColorScheme) {
       setColorScheme('dark');
     }
-  }, []); // Solo al montar el componente raíz
+  }, [setColorScheme]); // Solo al montar el componente raíz
 
   useEffect(() => {
     if (!initialized) return;
@@ -41,7 +41,7 @@ function RootLayoutNav() {
       // Redirect away from the login page.
       router.replace('/(tabs)');
     }
-  }, [session, initialized, segments]);
+  }, [session, initialized, segments, router]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -65,4 +65,3 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
-

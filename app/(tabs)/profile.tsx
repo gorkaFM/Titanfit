@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, TextInput, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { workoutService } from '@/lib/workoutService';
 import { supabase } from '@/lib/supabase';
-import { User, Ruler, Activity, ChevronRight, Save, LogOut, TrendingUp, Info, Target, Flame } from 'lucide-react-native';
-import Svg, { Polyline, G, Line } from 'react-native-svg';
+import { User, Save, LogOut, TrendingUp, Target } from 'lucide-react-native';
+import Svg, { Polyline } from 'react-native-svg';
 import { LineChart } from 'react-native-chart-kit';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
@@ -63,18 +63,13 @@ export default function ProfileScreen() {
         fat_pct: '25',
     });
 
-    useEffect(() => {
-        if (user) {
-            loadData();
-        }
-    }, [user]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
+        if (!user) return;
         setLoading(true);
         try {
             const [latest, fullHistory] = await Promise.all([
-                workoutService.getLatestMeasurements(user!.id),
-                workoutService.getMeasurementHistory(user!.id)
+                workoutService.getLatestMeasurements(user.id),
+                workoutService.getMeasurementHistory(user.id)
             ]);
 
             if (latest) {
@@ -100,12 +95,18 @@ export default function ProfileScreen() {
                 }
             }
             setHistory(fullHistory);
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            loadData();
+        }
+    }, [user, loadData]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -156,8 +157,8 @@ export default function ProfileScreen() {
                         try {
                             await workoutService.resetUserData(user!.id);
                             loadData();
-                        } catch (e) {
-                            console.error(e);
+                        } catch (error) {
+                            console.error(error);
                         } finally {
                             setSaving(false);
                         }

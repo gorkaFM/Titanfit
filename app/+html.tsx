@@ -1,6 +1,8 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
+const BUILD_ID = '2026-03-19-gemini25-cachefix';
+
 /**
  * Root HTML document for the Expo web / PWA build.
  * – viewport-fit=cover: required for CSS env(safe-area-inset-*) to return real values on iOS Safari
@@ -21,7 +23,10 @@ export default function Root({ children }: PropsWithChildren) {
         />
 
         {/* PWA manifest – tells the browser this is an installable app */}
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href={`/manifest.json?v=${BUILD_ID}`} />
+        <meta httpEquiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta name="x-titanfit-build" content={BUILD_ID} />
 
         {/* iOS PWA meta tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />

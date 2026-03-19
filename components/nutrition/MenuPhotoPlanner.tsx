@@ -4,22 +4,8 @@ import {
     ActivityIndicator, Platform, Alert
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { Camera, Sparkles, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText } from 'lucide-react-native';
-
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
-interface DayPlan {
-    day: string;
-    meals: { meal: string; foods: string; kcal_approx: number }[];
-}
-
-interface ShoppingItem {
-    category: string;
-    items: string[];
-}
+import { Camera, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText } from 'lucide-react-native';
+import { ACTIVE_GEMINI_MODELS, analyzeMenuAsset, DayPlan, generateShoppingListFromPlan, ShoppingItem } from '@/lib/menuPlannerService';
 
 // ─── Helpers de selección de imagen / PDF ─────────────────────────────────────
 
@@ -57,14 +43,14 @@ async function pickFile(mode: 'camera' | 'gallery' | 'pdf'): Promise<{ base64: s
     // Native
     try {
         if (mode === 'camera') {
-            const { launchCameraAsync, MediaTypeOptions, requestCameraPermissionsAsync } = require('expo-image-picker');
+            const { launchCameraAsync, MediaTypeOptions, requestCameraPermissionsAsync } = await import('expo-image-picker');
             const { status } = await requestCameraPermissionsAsync();
             if (status !== 'granted') { Alert.alert('Permiso requerido', 'TitanFit necesita acceso a la cámara.'); return null; }
             const result = await launchCameraAsync({ mediaTypes: MediaTypeOptions.Images, base64: true, quality: 0.7 });
             if (result.canceled) return null;
             return { base64: result.assets[0].base64 ?? '', mimeType: 'image/jpeg' };
         } else if (mode === 'gallery') {
-            const { launchImageLibraryAsync, MediaTypeOptions, requestMediaLibraryPermissionsAsync } = require('expo-image-picker');
+            const { launchImageLibraryAsync, MediaTypeOptions, requestMediaLibraryPermissionsAsync } = await import('expo-image-picker');
             const { status } = await requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') { Alert.alert('Permiso requerido', 'TitanFit necesita acceso a tu galería.'); return null; }
             const result = await launchImageLibraryAsync({ mediaTypes: MediaTypeOptions.Images, base64: true, quality: 0.7 });
@@ -72,107 +58,18 @@ async function pickFile(mode: 'camera' | 'gallery' | 'pdf'): Promise<{ base64: s
             return { base64: result.assets[0].base64 ?? '', mimeType: 'image/jpeg' };
         } else {
             // PDF — use expo-document-picker
-            const { getDocumentAsync } = require('expo-document-picker');
+            const { getDocumentAsync } = await import('expo-document-picker');
             const result = await getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
             if (result.canceled) return null;
             const asset = result.assets[0];
             // Read file as base64
-            const { readAsStringAsync, EncodingType } = require('expo-file-system');
-            const base64 = await readAsStringAsync(asset.uri, { encoding: EncodingType.Base64 });
+            const { readAsStringAsync } = await import('expo-file-system');
+            const base64 = await readAsStringAsync(asset.uri, { encoding: 'base64' as any });
             return { base64, mimeType: asset.mimeType ?? 'application/pdf' };
         }
     } catch (err: any) {
         Alert.alert('Error', err.message ?? 'No se pudo cargar el archivo.');
         return null;
-    }
-}
-
-// ─── Llamada a Gemini Vision ──────────────────────────────────────────────────
-
-const PROMPT = `Eres un nutricionista experto. Analiza el menú, receta o lista de alimentos de la imagen/PDF adjunto y genera un plan alimentario semanal de 7 días siguiendo el mismo estilo de cocina y alimentos visibles.
-
-REGLAS ESTRICTAS:
-1. Responde ÚNICAMENTE con JSON puro, sin texto adicional, sin markdown, sin bloques de código.
-2. El JSON debe tener exactamente esta estructura:
-{"plan":[{"day":"Lunes","meals":[{"meal":"Desayuno","foods":"descripción","kcal_approx":350},{"meal":"Comida","foods":"descripción","kcal_approx":600},{"meal":"Merienda","foods":"descripción","kcal_approx":200},{"meal":"Cena","foods":"descripción","kcal_approx":500}]},{"day":"Martes","meals":[...]},{"day":"Miércoles","meals":[...]},{"day":"Jueves","meals":[...]},{"day":"Viernes","meals":[...]},{"day":"Sábado","meals":[...]},{"day":"Domingo","meals":[...]}]}
-3. Todos los campos son obligatorios. kcal_approx debe ser un número entero.
-4. NO añadas comentarios dentro del JSON.`;
-
-async function analyzeMenuImage(base64: string, mimeType: string): Promise<DayPlan[]> {
-    const response = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{
-                parts: [
-                    { text: PROMPT },
-                    { inline_data: { mime_type: mimeType, data: base64 } }
-                ]
-            }],
-            generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 4000,
-                responseMimeType: 'application/json',
-            }
-        })
-    });
-
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Gemini error ${response.status}: ${err.slice(0, 200)}`);
-    }
-
-    const data = await response.json();
-    const raw: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-
-    if (!raw.trim()) throw new Error('Gemini no devolvió contenido');
-
-    // Try direct parse first (responseMimeType=application/json should return clean JSON)
-    // Then try regex extraction as fallback for markdown-wrapped responses
-    let parsed: any;
-    try {
-        parsed = JSON.parse(raw);
-    } catch {
-        // Strip markdown code fences if present
-        const clean = raw
-            .replace(/```json\s*/gi, '')
-            .replace(/```\s*/g, '')
-            .trim();
-        const match = clean.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error('No se pudo extraer JSON de la respuesta de Gemini');
-        parsed = JSON.parse(match[0]);
-    }
-
-    const plan: DayPlan[] = parsed?.plan ?? [];
-    if (!plan.length) throw new Error('El plan generado está vacío');
-    return plan;
-}
-
-async function generateShoppingList(plan: DayPlan[]): Promise<ShoppingItem[]> {
-    const planText = plan.map(d =>
-        `${d.day}:\n${d.meals.map(m => `  ${m.meal}: ${m.foods}`).join('\n')}`
-    ).join('\n\n');
-
-    const prompt = `Dado este plan semanal, genera una lista de la compra organizada por categorías. Responde SOLO JSON puro sin markdown: {"categories":[{"category":"Carnes y Pescados","items":["item1"]},{"category":"Frutas y Verduras","items":["item1"]},...]}
-
-Plan:\n${planText}`;
-
-    const response = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 1500, responseMimeType: 'application/json' }
-        })
-    });
-    const data = await response.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    try {
-        return JSON.parse(raw)?.categories ?? [];
-    } catch {
-        const match = raw.match(/\{[\s\S]*\}/);
-        if (!match) return [];
-        return JSON.parse(match[0])?.categories ?? [];
     }
 }
 
@@ -195,7 +92,7 @@ export default function MenuPhotoPlanner() {
 
         setPhase('analyzing');
         try {
-            const result = await analyzeMenuImage(file.base64, file.mimeType);
+            const result = await analyzeMenuAsset(file.base64, file.mimeType);
             if (!result.length) throw new Error('No se pudo generar el plan');
             setPlan(result);
             setPhase('plan');
@@ -209,7 +106,7 @@ export default function MenuPhotoPlanner() {
     const handleGenerateShopping = async () => {
         setPhase('analyzing');
         try {
-            const list = await generateShoppingList(plan);
+            const list = await generateShoppingListFromPlan(plan);
             setShopping(list);
             setPhase('shopping');
         } catch {
@@ -232,7 +129,10 @@ export default function MenuPhotoPlanner() {
                 Planifica con IA
             </Text>
             <Text className={`text-center font-medium text-sm leading-relaxed mb-10 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Haz una foto o sube una imagen/PDF de tu menú, receta o lista de alimentos. Gemini AI generará un plan semanal completo.
+                Haz una foto o sube una imagen/PDF de tu menú, receta o lista de alimentos. TitanFit intentará primero el análisis directo y, si falla, activará extracción local de texto para seguir generando el plan.
+            </Text>
+            <Text className={`text-center font-bold text-[10px] uppercase tracking-widest mb-6 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                IA activa: {ACTIVE_GEMINI_MODELS.join(' -> ')}
             </Text>
 
             {/* 3 botones de acción */}
@@ -281,7 +181,7 @@ export default function MenuPhotoPlanner() {
                 Analizando…
             </Text>
             <Text className={`font-medium text-sm text-center mt-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                Gemini AI está generando tu plan semanal
+                TitanFit está leyendo el archivo y generando tu plan semanal
             </Text>
         </View>
     );

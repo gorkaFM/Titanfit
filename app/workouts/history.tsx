@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Platform } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -12,7 +12,7 @@ export default function HistoryScreen() {
     const [loading, setLoading] = useState(true);
     const [workouts, setWorkouts] = useState<any[]>([]);
 
-    const fetchAllWorkouts = async () => {
+    const fetchAllWorkouts = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
@@ -51,22 +51,22 @@ export default function HistoryScreen() {
             });
 
             setWorkouts(processed);
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         fetchAllWorkouts();
-    }, [user]);
+    }, [fetchAllWorkouts]);
 
     const handleDelete = async (id: string) => {
         try {
             await workoutService.deleteWorkout(id);
             fetchAllWorkouts();
-        } catch (e) {
+        } catch {
             alert("Error al eliminar");
         }
     };
@@ -161,7 +161,7 @@ export default function HistoryScreen() {
                                                 </View>
                                                 <View className="w-[1] h-3 bg-zinc-800" />
                                                 <View className="items-center">
-                                                    <Text className="text-white font-black text-xs">{Math.floor(workout.duration_seconds / 60)}'</Text>
+                                                    <Text className="text-white font-black text-xs">{Math.floor(workout.duration_seconds / 60)} min</Text>
                                                     <Text className="text-[7px] font-bold text-zinc-500 uppercase">Tiempo</Text>
                                                 </View>
                                             </View>

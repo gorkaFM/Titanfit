@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { workoutService } from '@/lib/workoutService';
-import { Zap, Info, Trophy, TrendingUp, Calendar, Plus } from 'lucide-react-native';
+import { Zap, Info, Trophy, TrendingUp, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import Svg from 'react-native-svg';
 import ThemeToggle from '@/components/ThemeToggle';
-import { useColorScheme } from 'nativewind';
-
-const { width } = Dimensions.get('window');
-
 import { BodyHeatmap } from '@/components/BodyHeatmap';
+import { useColorScheme } from 'nativewind';
 
 export default function DashboardScreen() {
     const { colorScheme } = useColorScheme();
@@ -21,22 +17,22 @@ export default function DashboardScreen() {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<{ totalVolume: number, workoutsCount: number, muscleDistribution: Record<string, number> } | null>(null);
 
-    const loadStats = async () => {
+    const loadStats = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
             const data = await workoutService.getDashboardStats(user.id, period);
             setStats(data);
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [period, user]);
 
     useEffect(() => {
         loadStats();
-    }, [user, period]);
+    }, [loadStats]);
 
     const heatmapData = useMemo(() => {
         // Fallback para visualización inmediata si no hay datos reales

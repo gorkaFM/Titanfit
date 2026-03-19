@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, Clock, Dumbbell, Flame, Share2, Trophy } from 'lucide-react-native';
+import { ChevronLeft, Clock, Dumbbell, Flame, Share2, Trophy } from 'lucide-react-native';
 import { workoutService } from '@/lib/workoutService';
 import Svg, { G, Path, Circle } from 'react-native-svg';
-
-const { width } = Dimensions.get('window');
 
 const formatTime = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
@@ -17,11 +15,20 @@ const formatTime = (totalSeconds: number) => {
 export default function WorkoutSummaryScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    const parseMuscles = () => {
+        try {
+            const parsed = JSON.parse((params.muscles as string) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
     
     const duration = parseInt(params.duration as string || '0', 10);
     const volume = parseInt(params.volume as string || '0', 10);
     const exerciseCount = parseInt(params.exerciseCount as string || '0', 10);
-    const musclesWorked = JSON.parse(params.muscles as string || '[]');
+    const musclesWorked = parseMuscles();
 
     const [details, setDetails] = useState<any>(null);
     const [loading, setLoading] = useState(false);

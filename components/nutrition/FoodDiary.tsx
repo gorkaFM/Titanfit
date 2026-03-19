@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
     View, Text, ScrollView, TouchableOpacity, SafeAreaView,
-    ActivityIndicator, Platform, Alert
+    ActivityIndicator
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { Plus, Trash2, ChevronLeft, ChevronRight, Zap, Beef, Wheat, Droplets } from 'lucide-react-native';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Zap } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { MealLogItem, NUTRI_SCORE_COLORS } from '@/lib/foodSearchService';
 import FoodSearchModal from './FoodSearchModal';

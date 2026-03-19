@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LineChart } from 'react-native-chart-kit';
-import { RUTINA_A_EMPUJE, RUTINA_B_TIRON, RUTINA_C_UNILATERAL, HOME_WORKOUTS, HomeWorkoutTemplate } from '@/data/homeWorkoutsTemplates';
+import { HOME_WORKOUTS } from '@/data/homeWorkoutsTemplates';
 import { Audio } from 'expo-av';
 
 
@@ -41,6 +41,11 @@ const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onTo
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
     
+    const completionSignature = useMemo(
+        () => we.sets.map((set) => String(set.is_completed)).join(','),
+        [we.sets]
+    );
+
     // Auto-colapsar si todas las series están completadas
     useEffect(() => {
         const allDone = we.sets.length > 0 && we.sets.every(s => s.is_completed);
@@ -51,7 +56,7 @@ const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onTo
         } else if (!allDone) {
             setIsCollapsed(false);
         }
-    }, [we.sets.map(s => s.is_completed).join(','), activeRestTimer?.remainingSeconds]);
+    }, [activeRestTimer?.exerciseId, activeRestTimer?.remainingSeconds, completionSignature, we.id, we.sets]);
     const isSupersetChild = we.supersets_with !== null;
     const [lastSets, setLastSets] = useState<WorkoutSet[]>([]);
     const [oneRM, setOneRM] = useState<number | null>(null);
@@ -331,6 +336,8 @@ const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onTo
     );
 });
 
+ExerciseRow.displayName = 'ExerciseRow';
+
 const SupersetBlock = React.memo(({
     exercises,
     isDark,
@@ -357,6 +364,11 @@ const SupersetBlock = React.memo(({
     const totalRounds = exercises[0]?.sets.length || 0;
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    const blockCompletionSignature = useMemo(
+        () => exercises.map((exercise) => exercise.sets.map((set) => String(set.is_completed)).join(',')).join('|'),
+        [exercises]
+    );
+
     // Auto-colapsar si todas las rondas están completadas
     useEffect(() => {
         const allDone = exercises.every(we => 
@@ -370,7 +382,7 @@ const SupersetBlock = React.memo(({
         } else if (!allDone) {
             setIsCollapsed(false);
         }
-    }, [exercises.map(we => we.sets.map(s => s.is_completed).join(',')).join('|'), restRemainingSeconds]);
+    }, [activeRestExerciseId, blockCompletionSignature, exercises, restRemainingSeconds]);
     
     return (
         <View className={`mb-10 rounded-[40px] overflow-hidden border ${isCollapsed ? 'border-zinc-800 bg-zinc-900/30 opacity-60' : 'border-blue-600/30 bg-zinc-950 shadow-2xl shadow-blue-900/10'}`}>
@@ -484,6 +496,8 @@ const SupersetBlock = React.memo(({
     );
 });
 
+SupersetBlock.displayName = 'SupersetBlock';
+
 
 export default function ActiveWorkoutScreen() {
     const router = useRouter();
@@ -539,7 +553,7 @@ export default function ActiveWorkoutScreen() {
             setExercisesDb(data);
             setLoading(false);
         });
-    }, []);
+    }, [setWorkoutExercises]);
 
     useEffect(() => {
         if (routine && !loading && exercisesDb.length > 0) {
@@ -553,7 +567,7 @@ export default function ActiveWorkoutScreen() {
                 setWorkoutStarted(true);
             }
         }
-    }, [routine, loading, exercisesDb]);
+    }, [exercisesDb, loading, routine, setAvailableExtraBlocks, setIsHomeWorkoutPlan, setWorkoutExercises, setWorkoutStarted, workoutExercises.length]);
 
     // Effect Temporizador Global
     useEffect(() => {
@@ -564,7 +578,7 @@ export default function ActiveWorkoutScreen() {
             }, 1000);
         }
         return () => clearInterval(timer);
-    }, [workoutStarted]);
+    }, [setElapsedWorkoutSeconds, workoutStarted]);
 
 
     // Effect Temporizador de Descanso
@@ -611,7 +625,7 @@ export default function ActiveWorkoutScreen() {
                 setTimeout(async () => {
                     try {
                         await sound.replayAsync();
-                    } catch (e) {}
+                    } catch {}
                 }, 600);
             }
 
@@ -724,7 +738,7 @@ export default function ActiveWorkoutScreen() {
             newWorkoutExercises.splice(lastIndexInBlock + 1, 0, ...duplicatedExercises);
             return newWorkoutExercises;
         });
-    }, []);
+    }, [setWorkoutExercises]);
 
     const addSet = useCallback((workoutExerciseId: string) => {
         setWorkoutExercises(prev => prev.map(we => {
@@ -742,7 +756,7 @@ export default function ActiveWorkoutScreen() {
             }
             return we;
         }));
-    }, []);
+    }, [setWorkoutExercises]);
 
     const toggleSuperset = useCallback((currentIndex: number) => {
         if (currentIndex === 0) return;
@@ -756,7 +770,7 @@ export default function ActiveWorkoutScreen() {
             }
             return updated;
         });
-    }, []);
+    }, [setWorkoutExercises]);
 
     const updateSet = useCallback((exerciseId: string, setIndex: number, field: keyof WorkoutSet, value: number | boolean, restSecondsTrigger?: number) => {
         setWorkoutExercises(prev => {
@@ -796,7 +810,7 @@ export default function ActiveWorkoutScreen() {
             setActiveRestExerciseId(exerciseId);
             setRestTimerActive(true);
         }
-    }, [isHomeWorkoutPlan, availableExtraBlocks]);
+    }, [availableExtraBlocks, isHomeWorkoutPlan, setWorkoutExercises]);
 
     const removeExercise = useCallback((exerciseId: string) => {
         setWorkoutExercises(prev => {
@@ -804,7 +818,7 @@ export default function ActiveWorkoutScreen() {
                 we.supersets_with === exerciseId ? { ...we, supersets_with: null } : we
             );
         });
-    }, []);
+    }, [setWorkoutExercises]);
 
     const addExtraBlock = () => {
         if (availableExtraBlocks.length > 0) {

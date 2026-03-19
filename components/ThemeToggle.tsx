@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { Sun, Moon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
