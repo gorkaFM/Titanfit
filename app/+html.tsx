@@ -1,7 +1,7 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
-const BUILD_ID = '2026-03-20-pwa-shell-fix';
+const BUILD_ID = '2026-03-20-pwa-shell-fix-v2';
 
 /**
  * Root HTML document for the Expo web / PWA build.
@@ -30,8 +30,8 @@ export default function Root({ children }: PropsWithChildren) {
 
         {/* iOS PWA meta tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        {/* "black-translucent" = fullscreen, content extends behind the status bar */}
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* "black" avoids fullscreen overlap quirks in installed iOS PWAs */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="TitanFit" />
 
         {/* Touch icon for iOS home screen */}
@@ -51,8 +51,7 @@ export default function Root({ children }: PropsWithChildren) {
               padding: 0;
               width: 100%;
               height: 100%;
-              min-height: 100dvh;
-              max-height: 100dvh;
+              min-height: 100%;
               background-color: #09090b;
               overflow: hidden;
               overscroll-behavior: none;
@@ -63,11 +62,11 @@ export default function Root({ children }: PropsWithChildren) {
             [data-expo-root] {
               width: 100%;
               height: 100%;
-              min-height: 100dvh;
-              max-height: 100dvh;
+              min-height: 100%;
               display: flex;
               flex-direction: column;
               background-color: #09090b;
+              overflow: hidden;
             }
           `
         }} />
