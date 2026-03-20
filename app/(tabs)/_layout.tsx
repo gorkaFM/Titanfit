@@ -2,12 +2,27 @@ import { useColorScheme } from 'nativewind';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, Dumbbell, User, UtensilsCrossed } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet, ViewStyle } from 'react-native';
 
 export default function TabLayout() {
   const schemeTools = useColorScheme();
   const colorScheme = typeof schemeTools === 'object' ? schemeTools.colorScheme : schemeTools;
   const isDark = colorScheme === 'dark';
+  const isWeb = Platform.OS === 'web';
+
+  const tabBarStyle: ViewStyle = {
+    backgroundColor: isDark ? 'rgba(9, 9, 11, 0.92)' : 'rgba(255, 255, 255, 0.95)',
+    borderTopWidth: 0,
+    elevation: 0,
+    paddingTop: 8,
+    paddingBottom: 8,
+    height: 72,
+  };
+
+  const webSafeAreaTabBar = isWeb ? ({
+    paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+    height: 'calc(72px + env(safe-area-inset-bottom))',
+  } as unknown as ViewStyle) : {};
 
   return (
     <Tabs
@@ -15,11 +30,13 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: isDark ? '#3b82f6' : '#2563eb',
         tabBarInactiveTintColor: isDark ? '#52525b' : '#94a3b8',
-        tabBarStyle: {
-          backgroundColor: isDark ? 'rgba(9, 9, 11, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-          borderTopWidth: 0,
-          elevation: 0,
-          paddingTop: 8,
+        tabBarStyle: { ...tabBarStyle, ...webSafeAreaTabBar },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginBottom: 2,
+        },
+        tabBarItemStyle: {
+          paddingBottom: 0,
         },
         tabBarBackground: () => (
           <BlurView
