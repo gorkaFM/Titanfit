@@ -58,7 +58,9 @@ export default function Root({ children }: PropsWithChildren) {
               overscroll-behavior: none;
             }
             /* Ensure the Expo web root fills the standalone PWA viewport on iOS */
-            body > div:first-child {
+            body > div:first-child,
+            #root,
+            [data-expo-root] {
               width: 100%;
               height: 100%;
               min-height: 100dvh;
