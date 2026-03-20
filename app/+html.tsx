@@ -1,7 +1,7 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
-const BUILD_ID = '2026-03-19-gemini25-cachefix';
+const BUILD_ID = '2026-03-20-pwa-shell-fix';
 
 /**
  * Root HTML document for the Expo web / PWA build.
@@ -45,12 +45,28 @@ export default function Root({ children }: PropsWithChildren) {
 
         <style dangerouslySetInnerHTML={{
           __html: `
+            html,
             body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              min-height: 100dvh;
+              max-height: 100dvh;
               background-color: #09090b;
               overflow: hidden;
+              overscroll-behavior: none;
             }
-            /* Ensure the app never shows a white flash on iOS */
-            html { background-color: #09090b; }
+            /* Ensure the Expo web root fills the standalone PWA viewport on iOS */
+            body > div:first-child {
+              width: 100%;
+              height: 100%;
+              min-height: 100dvh;
+              max-height: 100dvh;
+              display: flex;
+              flex-direction: column;
+              background-color: #09090b;
+            }
           `
         }} />
       </head>
