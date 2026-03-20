@@ -2,21 +2,12 @@ import { useColorScheme } from 'nativewind';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, Dumbbell, User, UtensilsCrossed } from 'lucide-react-native';
-import { Platform, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
 
 export default function TabLayout() {
   const schemeTools = useColorScheme();
   const colorScheme = typeof schemeTools === 'object' ? schemeTools.colorScheme : schemeTools;
   const isDark = colorScheme === 'dark';
-
-  // Get real safe area insets from SafeAreaProvider
-  // On native: device insets. On web PWA (viewport-fit=cover): insets from CSS env()
-  const insets = useSafeAreaInsets();
-
-  // Tab bar height = content height + home-indicator clearance
-  const TAB_CONTENT_HEIGHT = 56;
-  const tabBarHeight = TAB_CONTENT_HEIGHT + insets.bottom;
 
   return (
     <Tabs
@@ -28,8 +19,6 @@ export default function TabLayout() {
           backgroundColor: isDark ? 'rgba(9, 9, 11, 0.92)' : 'rgba(255, 255, 255, 0.95)',
           borderTopWidth: 0,
           elevation: 0,
-          height: tabBarHeight,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === 'web' ? 12 : 8,
           paddingTop: 8,
         },
         tabBarBackground: () => (
