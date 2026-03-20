@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    View, Text, TouchableOpacity, SafeAreaView, ScrollView, Modal,
+    View, Text, TouchableOpacity, ScrollView, Modal,
     ActivityIndicator, Platform, Alert
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { Camera, ShoppingCart, RefreshCw, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CheckSquare, Square, ClipboardList, Utensils } from 'lucide-react-native';
 import { ACTIVE_GEMINI_MODELS, analyzeMenuAsset, DayPlan, generateRecipeForMeal, generateShoppingListFromPlan, importPlanToDiary, MealRecipe, ShoppingItem } from '@/lib/menuPlannerService';
 import { clearPlannerState, loadPlannerState, PersistedShoppingCategory, savePlannerState } from '@/lib/nutritionPlannerStorage';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 // ─── Helpers de selección de imagen / PDF ─────────────────────────────────────
 
@@ -103,7 +102,6 @@ function getMealRecipeKey(day: string, meal: DayPlan['meals'][number]) {
 export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTransferToDiary, onDraftStateChange }: MenuPhotoPlannerProps) {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
-    const tabBarHeight = useBottomTabBarHeight();
 
     const [phase, setPhase] = useState<'idle' | 'analyzing' | 'plan' | 'shopping'>('idle');
     const [plan, setPlan] = useState<DayPlan[]>([]);
@@ -304,7 +302,7 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
                 flexGrow: 1,
                 paddingHorizontal: 32,
                 paddingTop: 24,
-                paddingBottom: tabBarHeight + 32,
+                paddingBottom: 32,
                 justifyContent: 'center',
             }}
             showsVerticalScrollIndicator={false}
@@ -386,7 +384,7 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
 
     // ─── Render plan ──────────────────────────────────────────────────────────
     const renderPlan = () => (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: tabBarHeight + 32 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center justify-between mb-5 pt-4">
                 <View>
                     <Text className={`font-black text-2xl uppercase tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}>Plan Semanal</Text>
@@ -478,7 +476,7 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
 
     // ─── Render shopping list ─────────────────────────────────────────────────
     const renderShopping = () => (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: tabBarHeight + 32 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center justify-between mb-5 pt-4">
                 <View>
                     <Text className={`font-black text-2xl uppercase tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}>Lista de la Compra</Text>
@@ -525,7 +523,7 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
     );
 
     return (
-        <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+        <View className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
             {phase === 'idle' && renderIdle()}
             {phase === 'analyzing' && renderAnalyzing()}
             {phase === 'plan' && renderPlan()}
@@ -593,6 +591,6 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, TextInput, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { workoutService } from '@/lib/workoutService';
 import { supabase } from '@/lib/supabase';
@@ -8,7 +8,7 @@ import Svg, { Polyline } from 'react-native-svg';
 import { LineChart } from 'react-native-chart-kit';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -48,7 +48,6 @@ const MiniLineChart = ({ data, color }: { data: number[], color: string }) => {
 export default function ProfileScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
-    const tabBarHeight = useBottomTabBarHeight();
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -210,18 +209,18 @@ export default function ProfileScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'} items-center justify-center`}>
+            <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'} items-center justify-center`}>
                 <ActivityIndicator color={isDark ? '#3b82f6' : '#2563eb'} />
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+        <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
         <ScrollView
             className="flex-1 px-6 pt-4"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: tabBarHeight + 32 }}
+            contentContainerStyle={{ paddingBottom: 32 }}
         >
                 {/* Header Profile */}
                 <View className="flex-row items-center mb-10">

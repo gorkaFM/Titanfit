@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-    View, Text, ScrollView, TouchableOpacity, SafeAreaView, Modal,
+    View, Text, ScrollView, TouchableOpacity, Modal,
     ActivityIndicator
 } from 'react-native';
 import { useColorScheme } from 'nativewind';
@@ -11,7 +11,6 @@ import { MealLogItem, NUTRI_SCORE_COLORS } from '@/lib/foodSearchService';
 import FoodSearchModal from './FoodSearchModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import { generateRecipeForMeal, MealRecipe } from '@/lib/menuPlannerService';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -79,7 +78,6 @@ function MacroBar({ label, value, max, color, unit = 'g' }: {
 export default function FoodDiary({ userId, focusDate }: Props) {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
-    const tabBarHeight = useBottomTabBarHeight();
 
     const [date, setDate] = useState(new Date());
     const [meals, setMeals] = useState<MealSection[]>([]);
@@ -266,7 +264,7 @@ export default function FoodDiary({ userId, focusDate }: Props) {
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+        <View className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
             {/* Header */}
             <View className={`flex-row items-center justify-between px-6 pt-2 pb-4 border-b ${isDark ? 'border-zinc-900' : 'border-slate-200'}`}>
                 <View className="flex-1">
@@ -278,7 +276,7 @@ export default function FoodDiary({ userId, focusDate }: Props) {
 
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: tabBarHeight + 32 }}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Navegador de fecha */}
@@ -527,6 +525,6 @@ export default function FoodDiary({ userId, focusDate }: Props) {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }

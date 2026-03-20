@@ -7,14 +7,13 @@ import { workoutService } from '@/lib/workoutService';
 import { ChevronRight, Eye, Flame, History, Plus, Trash2, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import ThemeToggle from '@/components/ThemeToggle';
-import { ActivityIndicator, Platform, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function WorkoutsScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
-    const tabBarHeight = useBottomTabBarHeight();
     const { user } = useAuth();
     const router = useRouter();
     const { isActive } = useWorkout();
@@ -94,10 +93,10 @@ export default function WorkoutsScreen() {
     ];
 
     return (
-        <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+        <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
             <ScrollView
                 className="flex-1 px-6"
-                contentContainerStyle={{ paddingTop: Platform.OS === 'android' ? 40 : 20, paddingBottom: tabBarHeight + 32 }}
+                contentContainerStyle={{ paddingTop: Platform.OS === 'android' ? 40 : 20, paddingBottom: 32 }}
                 showsVerticalScrollIndicator={false}
             >
 

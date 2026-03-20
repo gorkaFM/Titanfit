@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { workoutService } from '@/lib/workoutService';
 import { Zap, Info, Trophy, TrendingUp, Plus } from 'lucide-react-native';
@@ -7,12 +7,11 @@ import { useRouter } from 'expo-router';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BodyHeatmap } from '@/components/BodyHeatmap';
 import { useColorScheme } from 'nativewind';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DashboardScreen() {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
-    const tabBarHeight = useBottomTabBarHeight();
     const router = useRouter();
     const { user } = useAuth();
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
@@ -68,11 +67,11 @@ export default function DashboardScreen() {
     ];
 
     return (
-        <SafeAreaView className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
+        <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
             <ScrollView
                 className="flex-1 px-6 pt-4"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: tabBarHeight + 32 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
             >
                 {/* Header */}
                 <View className="flex-row items-center justify-between mb-8">

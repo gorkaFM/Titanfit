@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Alert, View, Text, TouchableOpacity } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { BookOpen, Camera } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import FoodDiary from '@/components/nutrition/FoodDiary';
 import MenuPhotoPlanner from '@/components/nutrition/MenuPhotoPlanner';
 import { useNavigation, usePreventRemove } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ActiveTab = 'diary' | 'planner';
 
@@ -70,7 +71,7 @@ export default function NutritionScreen() {
     return (
         <View className={`flex-1 ${isDark ? 'bg-zinc-950' : 'bg-slate-50'}`}>
             {/* Tab selector */}
-            <SafeAreaView>
+            <SafeAreaView edges={['top']}>
                 <View className={`flex-row mx-6 mt-2 p-1.5 rounded-3xl border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'}`}>
                     {([
                         { id: 'diary', label: 'Diario', Icon: BookOpen },
