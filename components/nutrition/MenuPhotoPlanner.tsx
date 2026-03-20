@@ -298,66 +298,77 @@ export default function MenuPhotoPlanner({ userId, resetSignal, resetMode, onTra
 
     // ─── Render idle ──────────────────────────────────────────────────────────
     const renderIdle = () => (
-        <View className="flex-1 items-center justify-center px-8">
-            <View className={`w-24 h-24 rounded-full items-center justify-center mb-8 ${isDark ? 'bg-zinc-900 border border-zinc-800' : 'bg-white shadow-lg border border-slate-100'}`}>
-                <Camera size={40} color="#3b82f6" />
-            </View>
-            <Text className={`font-black text-2xl text-center uppercase tracking-tighter mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Planifica con IA
-            </Text>
-            <Text className={`text-center font-medium text-sm leading-relaxed mb-10 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Haz una foto o sube una imagen/PDF de tu menú, receta o lista de alimentos. TitanFit intentará primero el análisis directo y, si falla, activará extracción local de texto para seguir generando el plan.
-            </Text>
-            <Text className={`text-center font-bold text-[10px] uppercase tracking-widest mb-6 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                IA activa: {ACTIVE_GEMINI_MODELS.join(' -> ')}
-            </Text>
-
-            {shopping.length > 0 && (
-                <TouchableOpacity
-                    onPress={() => setPhase('shopping')}
-                    className={`w-full px-8 py-4 rounded-[24px] mb-4 flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-sm'}`}
-                >
-                    <ClipboardList size={18} color="#10b981" />
-                    <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Ver lista guardada</Text>
-                </TouchableOpacity>
-            )}
-
-            {/* 3 botones de acción */}
-            <View className="w-full gap-y-3">
-                <TouchableOpacity
-                    onPress={() => handlePick('camera')}
-                    className="bg-blue-600 px-8 py-5 rounded-[28px] flex-row items-center justify-center gap-x-3 shadow-xl shadow-blue-500/30"
-                    activeOpacity={0.8}
-                >
-                    <Camera size={20} color="#ffffff" />
-                    <Text className="text-white font-black text-sm uppercase tracking-wider">Hacer Foto</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => handlePick('gallery')}
-                    className={`px-8 py-5 rounded-[28px] flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200 shadow-sm'}`}
-                    activeOpacity={0.8}
-                >
-                    <ImageIcon size={20} color="#3b82f6" />
-                    <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Cargar Imagen</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => handlePick('pdf')}
-                    className={`px-8 py-5 rounded-[28px] flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200 shadow-sm'}`}
-                    activeOpacity={0.8}
-                >
-                    <FileText size={20} color="#10b981" />
-                    <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Adjuntar PDF</Text>
-                </TouchableOpacity>
-            </View>
-
-            {error ? (
-                <View className="mt-6 w-full bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4">
-                    <Text className="text-red-500 font-bold text-sm text-center">{error}</Text>
+        <ScrollView
+            className="flex-1"
+            contentContainerStyle={{
+                flexGrow: 1,
+                paddingHorizontal: 32,
+                paddingTop: 24,
+                paddingBottom: tabBarHeight + 32,
+                justifyContent: 'center',
+            }}
+            showsVerticalScrollIndicator={false}
+        >
+            <View className="items-center">
+                <View className={`w-24 h-24 rounded-full items-center justify-center mb-8 ${isDark ? 'bg-zinc-900 border border-zinc-800' : 'bg-white shadow-lg border border-slate-100'}`}>
+                    <Camera size={40} color="#3b82f6" />
                 </View>
-            ) : null}
-        </View>
+                <Text className={`font-black text-2xl text-center uppercase tracking-tighter mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Planifica con IA
+                </Text>
+                <Text className={`text-center font-medium text-sm leading-relaxed mb-10 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                    Haz una foto o sube una imagen/PDF de tu menú, receta o lista de alimentos. TitanFit intentará primero el análisis directo y, si falla, activará extracción local de texto para seguir generando el plan.
+                </Text>
+                <Text className={`text-center font-bold text-[10px] uppercase tracking-widest mb-6 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                    IA activa: {ACTIVE_GEMINI_MODELS.join(' -> ')}
+                </Text>
+
+                {shopping.length > 0 && (
+                    <TouchableOpacity
+                        onPress={() => setPhase('shopping')}
+                        className={`w-full px-8 py-4 rounded-[24px] mb-4 flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-sm'}`}
+                    >
+                        <ClipboardList size={18} color="#10b981" />
+                        <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Ver lista guardada</Text>
+                    </TouchableOpacity>
+                )}
+
+                <View className="w-full gap-y-3">
+                    <TouchableOpacity
+                        onPress={() => handlePick('camera')}
+                        className="bg-blue-600 px-8 py-5 rounded-[28px] flex-row items-center justify-center gap-x-3 shadow-xl shadow-blue-500/30"
+                        activeOpacity={0.8}
+                    >
+                        <Camera size={20} color="#ffffff" />
+                        <Text className="text-white font-black text-sm uppercase tracking-wider">Hacer Foto</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => handlePick('gallery')}
+                        className={`px-8 py-5 rounded-[28px] flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200 shadow-sm'}`}
+                        activeOpacity={0.8}
+                    >
+                        <ImageIcon size={20} color="#3b82f6" />
+                        <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Cargar Imagen</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => handlePick('pdf')}
+                        className={`px-8 py-5 rounded-[28px] flex-row items-center justify-center gap-x-3 border ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200 shadow-sm'}`}
+                        activeOpacity={0.8}
+                    >
+                        <FileText size={20} color="#10b981" />
+                        <Text className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>Adjuntar PDF</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {error ? (
+                    <View className="mt-6 w-full bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4">
+                        <Text className="text-red-500 font-bold text-sm text-center">{error}</Text>
+                    </View>
+                ) : null}
+            </View>
+        </ScrollView>
     );
 
     // ─── Render analyzing ─────────────────────────────────────────────────────
