@@ -506,7 +506,7 @@ export default function ActiveWorkoutScreen() {
     const isDark = colorScheme === 'dark';
 
     const [exercisesDb, setExercisesDb] = useState<Exercise[]>([]);
-    const { routine } = useLocalSearchParams();
+    const { routine, autoAdd } = useLocalSearchParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -559,8 +559,12 @@ export default function ActiveWorkoutScreen() {
         if (routine && !loading && exercisesDb.length > 0) {
             const template = HOME_WORKOUTS.find(h => h.id === routine);
             if (template && workoutExercises.length === 0) {
-                const mandatory = template.exercises.filter(we => !(we as any).is_extra_block);
-                const extras = template.exercises.filter(we => (we as any).is_extra_block);
+                const enrichExercise = (we: WorkoutExercise) => ({
+                    ...we,
+                    exercise: exercisesDb.find(e => e.id === we.exercise_id) || we.exercise
+                });
+                const mandatory = template.exercises.filter(we => !(we as any).is_extra_block).map(enrichExercise);
+                const extras = template.exercises.filter(we => (we as any).is_extra_block).map(enrichExercise);
                 setWorkoutExercises(mandatory);
                 setAvailableExtraBlocks(extras);
                 setIsHomeWorkoutPlan(true);
@@ -654,6 +658,12 @@ export default function ActiveWorkoutScreen() {
         setSupersetCount(2);
         setShowBlockModal(true);
     };
+
+    useEffect(() => {
+        if (autoAdd === 'true' && !loading && exercisesDb.length > 0 && workoutExercises.length === 0) {
+            startAddFlow();
+        }
+    }, [autoAdd, loading, exercisesDb.length, workoutExercises.length]);
 
     const confirmBlockType = () => {
         setPendingExercisesCount(blockType === 'normal' ? 1 : supersetCount);
@@ -834,13 +844,32 @@ export default function ActiveWorkoutScreen() {
 
         Alert.alert(
             "FINALIZAR ENTRENAMIENTO",
-            "¿Has terminado ya por hoy? Se guardará todo tu progreso de esta sesión.",
+            "¿Deseas dar por terminado este entrenamiento?",
             [
                 { text: "No, seguir", style: "cancel" },
                 { 
                     text: "SÍ, FINALIZAR", 
-                    onPress: async () => {
-                        await executeFinishWorkout();
+                    onPress: () => {
+                        Alert.alert(
+                            "GUARDAR PROGRESO",
+                            "¿Quieres guardar este entreno en tu historial o descartarlo?",
+                            [
+                                { 
+                                    text: "Descartar", 
+                                    style: "destructive",
+                                    onPress: () => {
+                                        clearSession();
+                                        router.replace('/workouts');
+                                    }
+                                },
+                                { 
+                                    text: "Guardar", 
+                                    onPress: async () => {
+                                        await executeFinishWorkout();
+                                    }
+                                }
+                            ]
+                        );
                     }
                 }
             ]

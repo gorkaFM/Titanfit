@@ -180,7 +180,7 @@ export default function WorkoutsScreen() {
                 {/* Botón Principal (Continuación) */}
                 <View className="mb-12">
                     <TouchableOpacity
-                        onPress={() => router.push('/workouts/active')}
+                        onPress={() => router.push({ pathname: '/workouts/active', params: { autoAdd: 'true' } })}
                         activeOpacity={0.8}
                         className="overflow-hidden rounded-[32px] bg-blue-600 shadow-2xl shadow-blue-500/50 w-full"
                     >
@@ -196,7 +196,7 @@ export default function WorkoutsScreen() {
                     <Text className="text-zinc-500 font-black text-[10px] uppercase tracking-[0.2em] mb-4 px-1">Rutinas Fixed Home</Text>
                     <View className="gap-y-3">
                         <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'A' } })}
+                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'routine-a-push' } })}
                             className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-6 rounded-[32px] flex-row items-center justify-between border shadow-2xl shadow-blue-500/5`}
                         >
                             <View className="flex-row items-center flex-1">
@@ -215,7 +215,7 @@ export default function WorkoutsScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'B' } })}
+                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'routine-b-pull' } })}
                             className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-6 rounded-[32px] flex-row items-center justify-between border shadow-2xl shadow-blue-500/5`}
                         >
                             <View className="flex-row items-center flex-1">
@@ -234,7 +234,7 @@ export default function WorkoutsScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'C' } })}
+                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'routine-c-unilateral' } })}
                             className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-6 rounded-[32px] flex-row items-center justify-between border shadow-2xl shadow-blue-500/5`}
                         >
                             <View className="flex-row items-center flex-1">
@@ -289,7 +289,7 @@ export default function WorkoutsScreen() {
                                 </Text>
 
                                 <TouchableOpacity
-                                    onPress={() => router.push('/workouts/active')}
+                                    onPress={() => router.push({ pathname: '/workouts/active', params: { autoAdd: 'true' } })}
                                     activeOpacity={0.8}
                                     className="bg-blue-600 px-10 py-5 rounded-full flex-row items-center shadow-2xl shadow-blue-500/40"
                                 >
