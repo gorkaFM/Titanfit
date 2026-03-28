@@ -15,8 +15,6 @@ export default function TabLayout() {
     borderTopWidth: 0,
     elevation: 0,
     paddingTop: 8,
-    paddingBottom: 8,
-    height: 72,
   };
 
   const webSafeAreaTabBar = isWeb ? ({

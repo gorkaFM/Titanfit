@@ -559,10 +559,14 @@ export default function ActiveWorkoutScreen() {
         if (routine && !loading && exercisesDb.length > 0) {
             const template = HOME_WORKOUTS.find(h => h.id === routine);
             if (template && workoutExercises.length === 0) {
-                const enrichExercise = (we: WorkoutExercise) => ({
-                    ...we,
-                    exercise: exercisesDb.find(e => e.id === we.exercise_id) || we.exercise
-                });
+                const enrichExercise = (we: WorkoutExercise) => {
+                    const match = exercisesDb.find(e => e.name.toLowerCase() === we.exercise?.name.toLowerCase());
+                    return {
+                        ...we,
+                        exercise_id: match ? match.id : we.exercise_id,
+                        exercise: match || we.exercise
+                    };
+                };
                 const mandatory = template.exercises.filter(we => !(we as any).is_extra_block).map(enrichExercise);
                 const extras = template.exercises.filter(we => (we as any).is_extra_block).map(enrichExercise);
                 setWorkoutExercises(mandatory);
@@ -844,32 +848,21 @@ export default function ActiveWorkoutScreen() {
 
         Alert.alert(
             "FINALIZAR ENTRENAMIENTO",
-            "¿Deseas dar por terminado este entrenamiento?",
+            "¿Qué deseas hacer con el progreso de esta sesión?",
             [
-                { text: "No, seguir", style: "cancel" },
+                { text: "Cancelar (Seguir)", style: "cancel" },
                 { 
-                    text: "SÍ, FINALIZAR", 
+                    text: "Descartar", 
+                    style: "destructive",
                     onPress: () => {
-                        Alert.alert(
-                            "GUARDAR PROGRESO",
-                            "¿Quieres guardar este entreno en tu historial o descartarlo?",
-                            [
-                                { 
-                                    text: "Descartar", 
-                                    style: "destructive",
-                                    onPress: () => {
-                                        clearSession();
-                                        router.replace('/workouts');
-                                    }
-                                },
-                                { 
-                                    text: "Guardar", 
-                                    onPress: async () => {
-                                        await executeFinishWorkout();
-                                    }
-                                }
-                            ]
-                        );
+                        clearSession();
+                        router.replace('/workouts');
+                    }
+                },
+                { 
+                    text: "Guardar Entreno", 
+                    onPress: async () => {
+                        await executeFinishWorkout();
                     }
                 }
             ]
