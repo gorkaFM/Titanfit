@@ -521,6 +521,7 @@ export default function ActiveWorkoutScreen() {
     } = useWorkout();
 
     const [showFinisherModal, setShowFinisherModal] = useState(false);
+    const [showFinishConfirmModal, setShowFinishConfirmModal] = useState(false);
 
     // Local UI state — transient, fine to reset on tab switch
     const [restTimerActive, setRestTimerActive] = useState(false);
@@ -560,7 +561,14 @@ export default function ActiveWorkoutScreen() {
             const template = HOME_WORKOUTS.find(h => h.id === routine);
             if (template && workoutExercises.length === 0) {
                 const enrichExercise = (we: WorkoutExercise) => {
-                    const match = exercisesDb.find(e => e.name.toLowerCase() === we.exercise?.name.toLowerCase());
+                    let match = exercisesDb.find(e => e.name.toLowerCase() === we.exercise?.name?.toLowerCase());
+                    if (!match && we.exercise?.name) {
+                        const firstWord = we.exercise.name.toLowerCase().split(' ')[0];
+                        match = exercisesDb.find(e => 
+                            e.name.toLowerCase().includes(firstWord) && 
+                            e.target_muscle_group === we.exercise?.target_muscle_group
+                        );
+                    }
                     return {
                         ...we,
                         exercise_id: match ? match.id : we.exercise_id,
@@ -842,31 +850,10 @@ export default function ActiveWorkoutScreen() {
         }
     };
 
-    const finishWorkout = async () => {
+    const finishWorkout = () => {
         if (!user) return alert("Debes iniciar sesión");
         if (workoutExercises.length === 0) return alert("No hay ejercicios en este entreno");
-
-        Alert.alert(
-            "FINALIZAR ENTRENAMIENTO",
-            "¿Qué deseas hacer con el progreso de esta sesión?",
-            [
-                { text: "Cancelar (Seguir)", style: "cancel" },
-                { 
-                    text: "Descartar", 
-                    style: "destructive",
-                    onPress: () => {
-                        clearSession();
-                        router.replace('/workouts');
-                    }
-                },
-                { 
-                    text: "Guardar Entreno", 
-                    onPress: async () => {
-                        await executeFinishWorkout();
-                    }
-                }
-            ]
-        );
+        setShowFinishConfirmModal(true);
     };
     const executeFinishWorkout = async () => {
         if (!user) return;
@@ -1122,6 +1109,57 @@ export default function ActiveWorkoutScreen() {
                                 className="w-full py-5 rounded-3xl items-center border border-zinc-700"
                             >
                                 <Text className="text-zinc-400 font-bold uppercase tracking-widest text-xs">🏁 Finalizar sesión</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal Confirmación de Finalizar (Solución PWA Web) */}
+            <Modal visible={showFinishConfirmModal} transparent animationType="fade">
+                <View className="flex-1 justify-center items-center px-6">
+                    <BlurView intensity={80} tint="dark" className="absolute inset-0" />
+                    
+                    <View className="w-full bg-zinc-900 border border-zinc-800 p-8 rounded-[40px] items-center">
+                        <View className="bg-blue-600/10 p-4 rounded-full mb-6">
+                            <Zap size={40} color="#3b82f6" fill="#3b82f6" />
+                        </View>
+                        
+                        <Text className="text-2xl font-black text-white text-center mb-2 uppercase tracking-tighter">
+                            FINALIZAR SESIÓN
+                        </Text>
+                        
+                        <Text className="text-zinc-400 text-center mb-8 font-bold leading-relaxed px-2 text-xs">
+                            ¿Qué deseas hacer con el progreso actual?
+                        </Text>
+
+                        <View className="w-full gap-y-3">
+                            <TouchableOpacity 
+                                onPress={async () => {
+                                    setShowFinishConfirmModal(false);
+                                    await executeFinishWorkout();
+                                }}
+                                className="w-full bg-blue-600 py-4 rounded-2xl items-center shadow-xl shadow-blue-500/30"
+                            >
+                                <Text className="text-white font-black uppercase tracking-widest text-[11px]">Guardar Histórico</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    setShowFinishConfirmModal(false);
+                                    clearSession();
+                                    router.replace('/workouts');
+                                }}
+                                className="w-full bg-red-500/10 py-4 rounded-2xl items-center border border-red-500/20"
+                            >
+                                <Text className="text-red-500 font-bold uppercase tracking-widest text-[11px]">Descartar Sesión</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                onPress={() => setShowFinishConfirmModal(false)}
+                                className="w-full py-4 rounded-2xl items-center mt-2 border border-zinc-800 bg-zinc-900"
+                            >
+                                <Text className="text-zinc-400 font-bold uppercase tracking-widest text-[10px]">Cancelar / Seguir</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

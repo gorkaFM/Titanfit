@@ -18,8 +18,7 @@ export default function TabLayout() {
   };
 
   const webSafeAreaTabBar = isWeb ? ({
-    paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-    height: 'calc(72px + env(safe-area-inset-bottom))',
+    paddingBottom: 'env(safe-area-inset-bottom, 16px)',
   } as unknown as ViewStyle) : {};
 
   return (
