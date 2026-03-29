@@ -338,6 +338,60 @@ const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onTo
 
 ExerciseRow.displayName = 'ExerciseRow';
 
+const SupersetExerciseKPI = ({ we, user, isDark, onShowDetails }: { we: WorkoutExercise, user: any, isDark: boolean, onShowDetails: () => void }) => {
+    const [lastSets, setLastSets] = useState<WorkoutSet[]>([]);
+    const [oneRM, setOneRM] = useState<number | null>(null);
+    const [maxWeight, setMaxWeight] = useState<number>(0);
+
+    useEffect(() => {
+        if (user && we.exercise_id) {
+            workoutService.getLastPerformance(user.id, we.exercise_id).then(sets => { if (sets) setLastSets(sets); });
+            workoutService.getHistorical1RM(user.id, we.exercise_id).then(val => { if (val > 0) setOneRM(val); });
+            workoutService.getHistoricalMaxWeight(user.id, we.exercise_id).then(val => { if (val > 0) setMaxWeight(val); });
+        }
+    }, [user, we.exercise_id]);
+
+    return (
+        <View className="mb-2">
+            <TouchableOpacity onPress={onShowDetails} activeOpacity={0.7} className="flex-row items-center justify-between mb-3 px-2 mt-2">
+                <View className="flex-1 mr-4">
+                    <Text className={`font-black text-lg ${isDark ? 'text-white' : 'text-slate-900'} leading-tight uppercase tracking-tighter`}>{we.exercise?.name}</Text>
+                    <Text className="text-[9px] font-bold text-blue-500 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-md self-start mt-1">{we.exercise?.target_muscle_group}</Text>
+                </View>
+                <View className="bg-blue-600/20 border border-blue-500/30 px-3 py-2 rounded-2xl flex-row items-center">
+                    <Text className="text-blue-400 font-black text-[9px] uppercase tracking-widest">Ver GIF / Stats</Text>
+                </View>
+            </TouchableOpacity>
+
+            <View className="flex-row gap-x-2 px-2">
+                <View className={`flex-1 ${isDark ? 'bg-zinc-950/50 border-zinc-800/50' : 'bg-slate-50 border-slate-100'} rounded-2xl p-3 border`}>
+                    <View className="flex-row items-center mb-1">
+                        <History size={10} color={isDark ? "#a1a1aa" : "#64748b"} />
+                        <Text className={`text-[7px] font-bold ${isDark ? 'text-zinc-500' : 'text-slate-400'} uppercase tracking-widest ml-1`}>Última Vez</Text>
+                    </View>
+                    <Text className={`text-[10px] font-black ${isDark ? 'text-zinc-300' : 'text-slate-700'}`} numberOfLines={1}>
+                        {lastSets.length > 0 ? lastSets.map(s => `${s.weight}x${s.reps}`).join('/') : 'Sin datos'}
+                    </Text>
+                </View>
+                <View className="flex-1 bg-emerald-500/5 rounded-2xl p-3 border border-emerald-500/20">
+                    <View className="flex-row items-center mb-1">
+                        <Dumbbell size={10} color="#10b981" />
+                        <Text className="text-[7px] font-bold text-emerald-500/70 uppercase tracking-widest ml-1">Mejor Peso</Text>
+                    </View>
+                    <Text className="text-xs font-black text-emerald-400">{maxWeight || 0} kg</Text>
+                </View>
+                <View className="flex-1 bg-blue-600/10 rounded-2xl p-3 border border-blue-500/20">
+                    <View className="flex-row items-center mb-1">
+                        <Trophy size={10} color="#3b82f6" fill="#3b82f6" />
+                        <Text className="text-[7px] font-bold text-blue-500 uppercase tracking-widest ml-1">Est. 1RM</Text>
+                    </View>
+                    <Text className="text-xs font-black text-blue-400">{oneRM || 0} kg</Text>
+                </View>
+            </View>
+        </View>
+    );
+};
+
 const SupersetBlock = React.memo(({
     exercises,
     isDark,
@@ -363,6 +417,7 @@ const SupersetBlock = React.memo(({
 }) => {
     const totalRounds = exercises[0]?.sets.length || 0;
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<Exercise | null>(null);
 
     const blockCompletionSignature = useMemo(
         () => exercises.map((exercise) => exercise.sets.map((set) => String(set.is_completed)).join(',')).join('|'),
@@ -408,6 +463,21 @@ const SupersetBlock = React.memo(({
 
             {!isCollapsed && (
                 <View className="p-2">
+                    {/* Sumario Triple KPI Header for Supersets */}
+                    <View className="mb-6 bg-zinc-900/40 rounded-[32px] p-2 border border-zinc-800/40">
+                        {exercises.map((we, idx) => (
+                            <React.Fragment key={`kpi-${we.id}`}>
+                                <SupersetExerciseKPI 
+                                    we={we} 
+                                    user={user} 
+                                    isDark={isDark} 
+                                    onShowDetails={() => setSelectedExerciseForModal(we.exercise!)} 
+                                />
+                                {idx < exercises.length - 1 && <View className="h-px bg-zinc-800/50 mx-6 my-2" />}
+                            </React.Fragment>
+                        ))}
+                    </View>
+
                     {Array.from({ length: totalRounds }).map((_, rIdx) => (
                         <View key={rIdx} className="mb-4 bg-zinc-900/50 rounded-[32px] p-4 border border-zinc-800/50">
                             <View className="flex-row items-center mb-4 px-2">
@@ -491,6 +561,16 @@ const SupersetBlock = React.memo(({
                         </View>
                     ))}
                 </View>
+            )}
+
+            {selectedExerciseForModal && (
+                <ExerciseDetailsModal 
+                    isDark={isDark}
+                    isVisible={!!selectedExerciseForModal}
+                    onClose={() => setSelectedExerciseForModal(null)}
+                    exercise={selectedExerciseForModal}
+                    userId={user.id}
+                />
             )}
         </View>
     );
