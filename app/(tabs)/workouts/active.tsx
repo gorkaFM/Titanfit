@@ -556,34 +556,43 @@ export default function ActiveWorkoutScreen() {
         });
     }, [setWorkoutExercises]);
 
+    const routineLoaded = React.useRef(false);
+
     useEffect(() => {
-        if (routine && !loading && exercisesDb.length > 0) {
+        if (routine && !loading && exercisesDb.length > 0 && !routineLoaded.current) {
             const template = HOME_WORKOUTS.find(h => h.id === routine);
             if (template && workoutExercises.length === 0) {
+                const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
                 const enrichExercise = (we: WorkoutExercise) => {
-                    let match = exercisesDb.find(e => e.name.toLowerCase() === we.exercise?.name?.toLowerCase());
-                    if (!match && we.exercise?.name) {
-                        const firstWord = we.exercise.name.toLowerCase().split(' ')[0];
-                        match = exercisesDb.find(e => 
-                            e.name.toLowerCase().includes(firstWord) && 
-                            e.target_muscle_group === we.exercise?.target_muscle_group
-                        );
+                    const templateName = normalize(we.exercise?.name || '');
+                    let match = exercisesDb.find(e => normalize(e.name) === templateName);
+                    
+                    if (!match && templateName) {
+                        const firstWord = templateName.split(' ')[0];
+                        match = exercisesDb.find(e => {
+                            const dbName = normalize(e.name);
+                            return dbName.includes(templateName) || templateName.includes(dbName) || 
+                                   (dbName.includes(firstWord) && e.target_muscle_group === we.exercise?.target_muscle_group);
+                        });
                     }
+                    
                     return {
                         ...we,
                         exercise_id: match ? match.id : we.exercise_id,
                         exercise: match || we.exercise
                     };
                 };
+                
                 const mandatory = template.exercises.filter(we => !(we as any).is_extra_block).map(enrichExercise);
                 const extras = template.exercises.filter(we => (we as any).is_extra_block).map(enrichExercise);
                 setWorkoutExercises(mandatory);
                 setAvailableExtraBlocks(extras);
                 setIsHomeWorkoutPlan(true);
-                setWorkoutStarted(true);
+                routineLoaded.current = true;
             }
         }
-    }, [exercisesDb, loading, routine, setAvailableExtraBlocks, setIsHomeWorkoutPlan, setWorkoutExercises, setWorkoutStarted, workoutExercises.length]);
+    }, [exercisesDb, loading, routine, setAvailableExtraBlocks, setIsHomeWorkoutPlan, setWorkoutExercises]);
 
     // Effect Temporizador Global
     useEffect(() => {
@@ -1148,6 +1157,7 @@ export default function ActiveWorkoutScreen() {
                                 onPress={() => {
                                     setShowFinishConfirmModal(false);
                                     clearSession();
+                                    router.setParams({ routine: '', autoAdd: '' });
                                     router.replace('/workouts');
                                 }}
                                 className="w-full bg-red-500/10 py-4 rounded-2xl items-center border border-red-500/20"
