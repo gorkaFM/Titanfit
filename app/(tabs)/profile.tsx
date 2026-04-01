@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { User, Save, LogOut, TrendingUp, Target } from 'lucide-react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import { LineChart } from 'react-native-chart-kit';
-import ThemeToggle from '@/components/ThemeToggle';
 import { useColorScheme } from 'nativewind';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -245,7 +244,6 @@ export default function ProfileScreen() {
                     </View>
                     {/* Actions — flex-shrink-0 so they never get pushed */}
                     <View className="flex-row items-center flex-shrink-0 gap-x-2">
-                        <ThemeToggle />
                         <TouchableOpacity onPress={() => supabase.auth.signOut()} className={`${isDark ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-3 rounded-2xl border`}>
                             <LogOut size={20} color="#ef4444" />
                         </TouchableOpacity>
