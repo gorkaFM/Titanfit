@@ -586,7 +586,7 @@ export default function ActiveWorkoutScreen() {
     const isDark = colorScheme === 'dark';
 
     const [exercisesDb, setExercisesDb] = useState<Exercise[]>([]);
-    const { routine, autoAdd } = useLocalSearchParams();
+    const { routine, autoAdd, routineMode } = useLocalSearchParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -670,7 +670,12 @@ export default function ActiveWorkoutScreen() {
                     };
                 };
                 
-                const mandatory = template.exercises.filter(we => !(we as any).is_extra_block).map(enrichExercise);
+                let baseMandatory = template.exercises.filter(we => !(we as any).is_extra_block);
+                if (routineMode === 'biset') {
+                    baseMandatory = baseMandatory.filter(we => !we.id.endsWith('-e3'));
+                }
+                const mandatory = baseMandatory.map(enrichExercise);
+                
                 const extras = template.exercises.filter(we => (we as any).is_extra_block).map(enrichExercise);
                 setWorkoutExercises(mandatory);
                 setAvailableExtraBlocks(extras);

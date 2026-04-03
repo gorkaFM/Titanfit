@@ -4,10 +4,10 @@ import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { workoutService } from '@/lib/workoutService';
-import { ChevronRight, Eye, Flame, History, Plus, Trash2, Zap } from 'lucide-react-native';
+import { ChevronRight, Eye, Flame, History, Plus, Trash2, Zap, X } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import ThemeToggle from '@/components/ThemeToggle';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -18,6 +18,7 @@ export default function WorkoutsScreen() {
     const router = useRouter();
     const { isActive } = useWorkout();
     const [loading, setLoading] = useState(true);
+    const [selectedRoutineForModal, setSelectedRoutineForModal] = useState<string | null>(null);
 
     const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
 
@@ -196,7 +197,7 @@ export default function WorkoutsScreen() {
                     <Text className="text-zinc-500 font-black text-[10px] uppercase tracking-[0.2em] mb-4 px-1">Rutinas Fixed Home</Text>
                     <View className="gap-y-3">
                         <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'routine-a-push' } })}
+                            onPress={() => setSelectedRoutineForModal('routine-a-push')}
                             className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-6 rounded-[32px] flex-row items-center justify-between border shadow-2xl shadow-blue-500/5`}
                         >
                             <View className="flex-row items-center flex-1">
@@ -215,7 +216,7 @@ export default function WorkoutsScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'routine-b-pull' } })}
+                            onPress={() => setSelectedRoutineForModal('routine-b-pull')}
                             className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-6 rounded-[32px] flex-row items-center justify-between border shadow-2xl shadow-blue-500/5`}
                         >
                             <View className="flex-row items-center flex-1">
@@ -234,7 +235,7 @@ export default function WorkoutsScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/workouts/active', params: { routine: 'routine-c-unilateral' } })}
+                            onPress={() => setSelectedRoutineForModal('routine-c-unilateral')}
                             className={`${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-100 shadow-sm'} p-6 rounded-[32px] flex-row items-center justify-between border shadow-2xl shadow-blue-500/5`}
                         >
                             <View className="flex-row items-center flex-1">
@@ -361,6 +362,52 @@ export default function WorkoutsScreen() {
                 )}
 
             </ScrollView>
+
+            <Modal visible={!!selectedRoutineForModal} transparent animationType="slide">
+                <View className="flex-1 bg-black/80 justify-end">
+                    <View className={`${isDark ? 'bg-zinc-950 border-zinc-900 border-t' : 'bg-white shadow-2xl'} p-6 rounded-t-[40px] pb-10`}>
+                        <View className="flex-row justify-between items-center mb-6">
+                            <Text className={`font-black uppercase tracking-widest text-[11px] ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>MODALIDAD DEL ENTRENAMIENTO</Text>
+                            <TouchableOpacity onPress={() => setSelectedRoutineForModal(null)} className={`w-10 h-10 items-center justify-center rounded-full ${isDark ? 'bg-zinc-900' : 'bg-slate-100'}`}>
+                                <X size={20} color={isDark ? '#a1a1aa' : '#475569'} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <TouchableOpacity 
+                            onPress={() => {
+                                router.push({ pathname: '/workouts/active', params: { routine: selectedRoutineForModal!, routineMode: 'triset' } });
+                                setSelectedRoutineForModal(null);
+                            }}
+                            className="bg-blue-600 rounded-[28px] p-5 mb-4 flex-row items-center border border-blue-500/30 shadow-2xl shadow-blue-600/20"
+                        >
+                            <View className="bg-white/20 w-14 h-14 rounded-2xl items-center justify-center mr-4">
+                                <Flame size={28} color="#ffffff" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="font-black text-white text-lg uppercase tracking-wider">Triserie (Intenso)</Text>
+                                <Text className="font-bold text-blue-200 text-[10px] mt-1 leading-tight uppercase tracking-widest">3 Ejercicios por bloque. Rutina completa del programa.</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            onPress={() => {
+                                router.push({ pathname: '/workouts/active', params: { routine: selectedRoutineForModal!, routineMode: 'biset' } });
+                                setSelectedRoutineForModal(null);
+                            }}
+                            className={`${isDark ? 'bg-zinc-900/50 border-zinc-800' : 'bg-slate-50 border-slate-200 shadow-sm'} rounded-[28px] p-5 mb-4 flex-row items-center border`}
+                        >
+                            <View className={`${isDark ? 'bg-zinc-800' : 'bg-white'} w-14 h-14 rounded-2xl items-center justify-center mr-4 shadow-sm`}>
+                                <Zap size={28} color={isDark ? '#a1a1aa' : '#94a3b8'} />
+                            </View>
+                            <View className="flex-1">
+                                <Text className={`font-black text-lg uppercase tracking-wider ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>Biserie (Medio)</Text>
+                                <Text className={`font-bold text-[10px] mt-1 leading-tight uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>2 Ejercicios. Omite accesorios para un entreno rápido.</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
         </SafeAreaView>
     );
 }
