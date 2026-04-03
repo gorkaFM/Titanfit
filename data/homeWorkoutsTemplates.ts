@@ -38,7 +38,7 @@ export const RUTINA_A_EMPUJE: HomeWorkoutTemplate = {
         {
             id: 'b1-e3',
             exercise_id: 'a43094c6-143d-4618-b868-682727da04f4',
-            exercise: { id: 'a43094c6-143d-4618-b868-682727da04f4', name: 'Flexiones de Brazos', target_muscle_group: 'Pecho' },
+            exercise: { id: 'a43094c6-143d-4618-b868-682727da04f4', name: 'Flexiones', target_muscle_group: 'Pecho' },
             sets: createStandardSets(15, 90), // Descanso al final de la triserie
             supersets_with: 'b1-e1'
         },
@@ -60,8 +60,8 @@ export const RUTINA_A_EMPUJE: HomeWorkoutTemplate = {
         },
         {
             id: 'b2-e3',
-            exercise_id: '7ed98323-4ea7-4f72-aea8-456e0be8756e',
-            exercise: { id: '7ed98323-4ea7-4f72-aea8-456e0be8756e', name: 'Sentadilla Isométrica', target_muscle_group: 'Piernas' },
+            exercise_id: 'f1decac8-d8b2-4858-913a-aecc435648be',
+            exercise: { id: 'f1decac8-d8b2-4858-913a-aecc435648be', name: 'Sentadilla', target_muscle_group: 'Piernas' },
             sets: createStandardSets(60, 90),
             supersets_with: 'b2-e1'
         },
@@ -100,7 +100,7 @@ export const RUTINA_A_EMPUJE: HomeWorkoutTemplate = {
         {
             id: 'b4-e2',
             exercise_id: 'ebdf858f-08ca-4dbf-b0e3-d46016b46f97',
-            exercise: { id: 'ebdf858f-08ca-4dbf-b0e3-d46016b46f97', name: 'Extensión Tríceps tras nuca', target_muscle_group: 'Brazos' },
+            exercise: { id: 'ebdf858f-08ca-4dbf-b0e3-d46016b46f97', name: 'Extensión de Tríceps tras Nuca', target_muscle_group: 'Brazos' },
             sets: createStandardSets(12),
             supersets_with: 'b4-e1'
         },
@@ -116,7 +116,7 @@ export const RUTINA_A_EMPUJE: HomeWorkoutTemplate = {
         {
             id: 'b5-e1',
             exercise_id: 'a58145f3-c0ac-4bdb-a7fc-2e328fe10fe7',
-            exercise: { id: 'a58145f3-c0ac-4bdb-a7fc-2e328fe10fe7', name: 'Crunch Abdominal', target_muscle_group: 'Core' },
+            exercise: { id: 'a58145f3-c0ac-4bdb-a7fc-2e328fe10fe7', name: 'Crunch', target_muscle_group: 'Core' },
             sets: createStandardSets(20),
             supersets_with: null,
             // @ts-ignore - Metadato personalizado para identificar el bloque extra
@@ -133,8 +133,8 @@ export const RUTINA_A_EMPUJE: HomeWorkoutTemplate = {
         },
         {
             id: 'b5-e3',
-            exercise_id: '2fce0826-8e52-4f71-bcc8-292cb20de517',
-            exercise: { id: '2fce0826-8e52-4f71-bcc8-292cb20de517', name: 'Dead Bug', target_muscle_group: 'Core' },
+            exercise_id: '04bdb80b-4fd8-4b42-9dac-8f654dbce92a',
+            exercise: { id: '04bdb80b-4fd8-4b42-9dac-8f654dbce92a', name: 'Crunch de Bicicleta', target_muscle_group: 'Core' },
             sets: createStandardSets(10, 90),
             supersets_with: 'b5-e1',
             // @ts-ignore

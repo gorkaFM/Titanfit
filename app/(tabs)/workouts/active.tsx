@@ -643,18 +643,11 @@ export default function ActiveWorkoutScreen() {
             const template = HOME_WORKOUTS.find(h => h.id === routine);
             if (template && workoutExercises.length === 0) {
                 const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
                 const enrichExercise = (we: WorkoutExercise) => {
-                    const templateName = normalize(we.exercise?.name || '');
-                    let match = exercisesDb.find(e => normalize(e.name) === templateName);
+                    let match = exercisesDb.find(e => e.id === we.exercise_id);
                     
-                    if (!match && templateName) {
-                        const firstWord = templateName.split(' ')[0];
-                        match = exercisesDb.find(e => {
-                            const dbName = normalize(e.name);
-                            return dbName.includes(templateName) || templateName.includes(dbName) || 
-                                   (dbName.includes(firstWord) && e.target_muscle_group === we.exercise?.target_muscle_group);
-                        });
+                    if (!match) {
+                        console.warn(`CRÍTICO: El template pide el ejercicio ${we.exercise_id} (${we.exercise?.name}) pero no existe en Supabase!`);
                     }
                     
                     return {
