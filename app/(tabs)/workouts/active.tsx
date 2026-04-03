@@ -633,8 +633,21 @@ export default function ActiveWorkoutScreen() {
         workoutService.getExercises().then(data => {
             setExercisesDb(data);
             setLoading(false);
+
+            // AUTO-HEAL: Si hay un entrenamiento en caché (LocalStorage) aseguramos que tenga animación y no use el esqueleto antiguo
+            if (workoutExercises.length > 0) {
+                 const needsHealing = workoutExercises.some(we => we.exercise && !we.exercise.animation_url);
+                 if (needsHealing) {
+                     console.log("Sanando ejercicios corruptos en el contexto (faltan animaciones)...");
+                     setWorkoutExercises(prev => prev.map(we => {
+                         const match = data.find(e => e.id === we.exercise_id);
+                         if (match) return { ...we, exercise: match };
+                         return we;
+                     }));
+                 }
+            }
         });
-    }, [setWorkoutExercises]);
+    }, [setWorkoutExercises, workoutExercises.length]);
 
     const routineLoaded = React.useRef(false);
 
