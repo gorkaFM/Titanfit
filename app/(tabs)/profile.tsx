@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, Alert, Modal } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { workoutService } from '@/lib/workoutService';
 import { supabase } from '@/lib/supabase';
@@ -62,6 +62,7 @@ export default function ProfileScreen() {
         carbs_pct: '45',
         fat_pct: '25',
     });
+    const [showResetModal, setShowResetModal] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!user) return;
@@ -143,29 +144,19 @@ export default function ProfileScreen() {
         }
     };
 
-    const handleResetAll = async () => {
-        Alert.alert(
-            "BORRADO TOTAL",
-            "¿ESTÁS SEGURO? Esta acción borrará TODO tu historial de entrenamientos y mediciones. No se puede deshacer.",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { 
-                    text: "SÍ, BORRAR TODO", 
-                    style: "destructive",
-                    onPress: async () => {
-                        setSaving(true);
-                        try {
-                            await workoutService.resetUserData(user!.id);
-                            loadData();
-                        } catch (error) {
-                            console.error(error);
-                        } finally {
-                            setSaving(false);
-                        }
-                    } 
-                }
-            ]
-        );
+    const executeResetAll = async () => {
+        setSaving(true);
+        setShowResetModal(false);
+        try {
+            await workoutService.resetUserData(user!.id);
+            await loadData();
+            alert('Todos tus datos han sido borrados de los servidores de TitanFit.');
+        } catch (error) {
+            console.error(error);
+            alert('Error al borrar los datos.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const renderInput = (label: string, field: string, placeholder: string, unit: string, showTrend: boolean = true) => {
@@ -412,13 +403,42 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    onPress={handleResetAll}
+                    onPress={() => setShowResetModal(true)}
                     disabled={saving}
-                    className="mb-20 py-4 items-center"
+                    className="mb-10 py-5 px-6 items-center bg-red-500/10 rounded-3xl border border-red-500/20"
                 >
-                    <Text className="text-zinc-700 font-bold uppercase tracking-widest text-[10px]">Reiniciar todos los progresos</Text>
+                    <Text className="text-red-500 font-black uppercase tracking-widest text-xs">PELIGRO: BORRAR TODOS MIS DATOS</Text>
+                    <Text className="text-red-500/60 font-bold text-[10px] text-center mt-2">Reiniciar pesos, historial y biometría a cero absoluto</Text>
                 </TouchableOpacity>
+
             </ScrollView>
+
+            {/* Modal de Confirmación de Borrado */}
+            <Modal visible={showResetModal} transparent animationType="fade">
+                <View className="flex-1 bg-black/80 justify-center items-center px-6">
+                    <View className="bg-zinc-900 border border-zinc-800 p-8 rounded-[32px] w-full items-center shadow-2xl shadow-red-900/20">
+                        <Text className="text-red-500 font-black text-2xl uppercase mb-2 text-center">ZONA DE PELIGRO</Text>
+                        <Text className="text-zinc-400 font-bold text-center text-sm mb-8 leading-relaxed">
+                            ¿Estás absolutamente seguro? Esta acción borrará TODO tu historial de entrenamientos, pesos levantados y mediciones biométricas. No se puede deshacer.
+                        </Text>
+
+                        <TouchableOpacity 
+                            onPress={executeResetAll}
+                            className="w-full bg-red-600 py-4 rounded-2xl items-center mb-3 shadow-xl shadow-red-600/20"
+                        >
+                            <Text className="text-white font-black uppercase tracking-widest text-[11px]">SÍ, DESTRUIR TODOS MIS DATOS</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            onPress={() => setShowResetModal(false)}
+                            className="w-full bg-zinc-800 py-4 rounded-2xl items-center border border-zinc-700"
+                        >
+                            <Text className="text-white font-black uppercase tracking-widest text-[11px]">CANCELAR, ME HE EQUIVOCADO</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
         </SafeAreaView>
     );
 }
