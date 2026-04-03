@@ -4,7 +4,7 @@ import { useColorScheme } from 'nativewind';
 import { workoutService } from '@/lib/workoutService';
 import { Exercise, Workout, WorkoutExercise, WorkoutSet } from '@/types/workout';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CalendarClock, ChevronLeft, Copy, Dumbbell, History, Layers, Link, Play, Plus, Search, Square, Timer, Trash2, Trophy, X, Zap } from 'lucide-react-native';
+import { CalendarClock, ChevronLeft, Copy, Dumbbell, History, Layers, Link, Play, Plus, Search, Square, Timer, Trash2, Trophy, X, Zap, RefreshCw } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -23,7 +23,7 @@ const formatTime = (totalSeconds: number) => {
 };
 
 // Componente extraído para evitar la pérdida de foco en los TextInput por re-renderizado
-const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onToggleSuperset, onDuplicateBlock, onRemoveExercise, onUpdateSet, onAddSet, onDismissTimer, blockIndex, totalBlocks }: { 
+const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onToggleSuperset, onDuplicateBlock, onRemoveExercise, onUpdateSet, onAddSet, onDismissTimer, blockIndex, totalBlocks, onReplaceExercise }: { 
     we: WorkoutExercise, 
     index: number, 
     isDark: boolean, 
@@ -36,7 +36,8 @@ const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onTo
     onAddSet: (id: string) => void,
     onDismissTimer: () => void,
     blockIndex?: number,
-    totalBlocks?: number
+    totalBlocks?: number,
+    onReplaceExercise?: (id: string) => void
 }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
@@ -180,6 +181,11 @@ const ExerciseRow = React.memo(({ we, index, isDark, user, activeRestTimer, onTo
                         <TouchableOpacity onPress={() => onDuplicateBlock(we.id)} className="w-10 h-10 rounded-full items-center justify-center bg-zinc-800">
                             <Copy size={16} color="#a1a1aa" />
                         </TouchableOpacity>
+                        {onReplaceExercise && (
+                            <TouchableOpacity onPress={() => onReplaceExercise(we.id)} className="w-10 h-10 rounded-full items-center justify-center bg-zinc-800">
+                                <RefreshCw size={16} color="#3b82f6" />
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity onPress={() => onRemoveExercise(we.id)} className="w-10 h-10 rounded-full items-center justify-center bg-zinc-800">
                             <Trash2 size={16} color="#ef4444" />
                         </TouchableOpacity>
@@ -402,7 +408,8 @@ const SupersetBlock = React.memo(({
     onDismissTimer,
     formatTime,
     blockIndex,
-    totalBlocks
+    totalBlocks,
+    onReplaceExercise
 }: {
     exercises: WorkoutExercise[],
     isDark: boolean,
@@ -413,7 +420,8 @@ const SupersetBlock = React.memo(({
     onDismissTimer: () => void,
     formatTime: (seconds: number) => string,
     blockIndex: number,
-    totalBlocks: number
+    totalBlocks: number,
+    onReplaceExercise?: (id: string) => void
 }) => {
     const totalRounds = exercises[0]?.sets.length || 0;
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -496,10 +504,15 @@ const SupersetBlock = React.memo(({
                                     return (
                                         <View key={we.id} className={`p-4 rounded-3xl border ${isCompleted ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-zinc-800/30 border-zinc-800'}`}>
                                             <View className="flex-row items-center justify-between mb-3">
-                                                <View className="flex-1 mr-2">
-                                                    <Text className={`font-black text-[11px] uppercase tracking-tight ${isCompleted ? 'text-emerald-500' : 'text-white'}`} numberOfLines={1}>
+                                                <View className="flex-1 mr-2 flex-row items-center">
+                                                    <Text className={`font-black text-[11px] uppercase tracking-tight flex-1 mr-2 ${isCompleted ? 'text-emerald-500' : 'text-white'}`} numberOfLines={1}>
                                                         {we.exercise?.name}
                                                     </Text>
+                                                    {onReplaceExercise && !isCompleted && rIdx === 0 && (
+                                                        <TouchableOpacity onPress={() => onReplaceExercise(we.id)} className={`mr-2 p-1.5 rounded-full ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                                                            <RefreshCw size={12} color={isDark ? '#e4e4e7' : '#475569'} />
+                                                        </TouchableOpacity>
+                                                    )}
                                                 </View>
                                                 
                                                 <TouchableOpacity
@@ -602,6 +615,9 @@ export default function ActiveWorkoutScreen() {
 
     const [showFinisherModal, setShowFinisherModal] = useState(false);
     const [showFinishConfirmModal, setShowFinishConfirmModal] = useState(false);
+    
+    // Substitución dinámica
+    const [substitutingExerciseId, setSubstitutingExerciseId] = useState<string | null>(null);
 
     // Local UI state — transient, fine to reset on tab switch
     const [restTimerActive, setRestTimerActive] = useState(false);
@@ -676,6 +692,15 @@ export default function ActiveWorkoutScreen() {
                 }
                 const mandatory = baseMandatory.map(enrichExercise);
                 
+                // Reparar el contador de descanso aseguramente para el último ejercicio del bloque
+                mandatory.forEach((we, i) => {
+                    const nextWe = mandatory[i+1];
+                    const isLastInSuperset = !nextWe || (nextWe.supersets_with !== we.id && nextWe.supersets_with !== we.supersets_with);
+                    if (isLastInSuperset) {
+                        we.sets = we.sets.map(s => ({...s, rest_seconds: s.rest_seconds || 90}));
+                    }
+                });
+
                 const extras = template.exercises.filter(we => (we as any).is_extra_block).map(enrichExercise);
                 setWorkoutExercises(mandatory);
                 setAvailableExtraBlocks(extras);
@@ -728,11 +753,9 @@ export default function ActiveWorkoutScreen() {
                 playThroughEarpieceAndroid: false,
             });
 
-            // Campana de boxeo clásica
-            const soundUrl = 'https://www.soundjay.com/misc/sounds/boxing-bell-1.mp3';
-            
+            // Campana de boxeo clásica local
             const { sound } = await Audio.Sound.createAsync(
-                { uri: soundUrl },
+                require('@/assets/sounds/boxing-bell.ogg'),
                 { shouldPlay: true, volume: 1.0 }
             );
 
@@ -766,9 +789,18 @@ export default function ActiveWorkoutScreen() {
     );
 
     const startAddFlow = () => {
+        setSubstitutingExerciseId(null);
         setBlockType('normal');
         setSupersetCount(2);
         setShowBlockModal(true);
+    };
+
+    const startReplaceFlow = (weId: string) => {
+        setBlockType('normal'); 
+        setPendingExercisesCount(1);
+        setSubstitutingExerciseId(weId);
+        setTempSelectedExercises([]);
+        setShowCatalogModal(true);
     };
 
     useEffect(() => {
@@ -799,6 +831,21 @@ export default function ActiveWorkoutScreen() {
 
     const confirmSelection = () => {
         if (tempSelectedExercises.length === 0) return;
+        
+        if (substitutingExerciseId) {
+            const targetEx = tempSelectedExercises[0];
+            setWorkoutExercises(prev => prev.map(we => {
+                if (we.id === substitutingExerciseId) {
+                    return { ...we, exercise_id: targetEx.id, exercise: targetEx };
+                }
+                return we;
+            }));
+            setShowCatalogModal(false);
+            setTempSelectedExercises([]);
+            setSearchQuery('');
+            setSubstitutingExerciseId(null);
+            return;
+        }
         
         const firstExId = Math.random().toString(36).substring(7);
         const newExercises: WorkoutExercise[] = tempSelectedExercises.map((ex, idx) => {
@@ -1101,6 +1148,7 @@ export default function ActiveWorkoutScreen() {
                                         formatTime={formatTime}
                                         blockIndex={bIdx + 1}
                                         totalBlocks={blocks.length}
+                                        onReplaceExercise={startReplaceFlow}
                                     />
                                 );
                             }
@@ -1121,6 +1169,7 @@ export default function ActiveWorkoutScreen() {
                                     onDismissTimer={() => setRestTimerActive(false)}
                                     blockIndex={bIdx + 1}
                                     totalBlocks={blocks.length}
+                                    onReplaceExercise={startReplaceFlow}
                                 />
                             );
                         });
